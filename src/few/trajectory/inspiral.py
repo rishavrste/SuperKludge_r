@@ -280,7 +280,7 @@ class EMRIInspiral(TrajectoryBase):
         ##################################
         #######  SUPERKLUDGE MOD  ########
         if type(self.func).__name__ == 'SuperKludgeFlux': #stackoverflow method
-            y0 = np.append(y0, np.array([deltaM0, deltaChi10]))
+            y0 = np.append(y0, np.array([deltaM0, deltaChi10]))     
         ##################################
 
         # this will return in coordinate time
@@ -288,8 +288,8 @@ class EMRIInspiral(TrajectoryBase):
         if self.integrate_constants_of_motion and self.convert_to_pex:
             out_ELQ = out.copy()
             pex = ELQ_to_pex(a, out[:, 1].copy(), out[:, 2].copy(), out[:, 3].copy())
-            out[:, 1] = pex[0]
-            out[:, 2] = pex[1]
+            out[:, 1] = pex[0]  
+            out[:, 2] = pex[1]  
             if self.inspiral_generator.convert_Y:
                 out[:, 3] = out_ELQ[:, 2] / np.sqrt(out_ELQ[:, 2] ** 2 + out_ELQ[:, 3])
             else:

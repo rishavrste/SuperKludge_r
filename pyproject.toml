@@ -1,3 +1,9 @@
+[tool.poetry]
+name = "SuperKludege_With_Deviation"
+version = "0.1.0"
+description = ""
+
+
 [build-system]
 build-backend = "scikit_build_core.build"
 
@@ -23,7 +29,7 @@ authors = [
   { name = "Niels Warburton" },
   { name = "Scott Hughes" },
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 classifiers = [
   "Environment :: GPU :: NVIDIA CUDA",
@@ -60,6 +66,8 @@ dependencies = [
   "tqdm",
   #@DEPS_CUPYCUDA@,
   #@DEPS_FEWCORE@,
+  "jupyter (>=1.1.1,<2.0.0)",
+  "matplotlib (>=3.10.6,<4.0.0)"
 ]
 
 optional-dependencies.doc = [
@@ -77,8 +85,7 @@ optional-dependencies.doc = [
 optional-dependencies.sampling = [
   "eryn",
   "fastlisaresponse",
-  "lisaanalysistools",
-  "lisatools",
+  "lisaanalysistools"
 ]
 
 optional-dependencies.testing = [

@@ -197,7 +197,7 @@ def _PN_alt(p, e):
         * oneme2
         * (1 + 73 / 24 * e**2 + 37 / 96 * e**4)
     )
-    Ldot = 32.0 / 5.0 * p ** (-7 / 2) * oneme2 * (1 + 7.0 / 8.0 * e**2)
+    Ldot = 32.0 / 5.0 * p ** (-7 / 2) * oneme2 * (1 + 7.0 / 8.0 * e**2)    #here most prob
     return Edot, Ldot
 
 @njit 
@@ -212,7 +212,7 @@ def _EdotPN_alt(p, e):
         / 5.0
         * p ** (-5)
         * oneme2
-        * (1 + 73 / 24 * e**2 + 37 / 96 * e**4)
+        * (1 + 73 / 24 * e**2 + 37 / 96 * e**4)  
     )
     return Edot
 
@@ -325,7 +325,7 @@ class KerrEccEqFlux(ODEBase):
 
                 risco = get_separatrix(agrid.flatten(), np.zeros_like(agrid.flatten()), xgrid.flatten())
                 psep = get_separatrix(agrid.flatten(), egrid.flatten(), xgrid.flatten())
-                pdot_pn = _pdot_PN(pgrid.flatten(), egrid.flatten(), risco, psep).reshape(u.size, w.size, z.size)
+                pdot_pn = _pdot_PN(pgrid.flatten(), egrid.flatten(), risco, psep).reshape(u.size, w.size, z.size) ##this
                 edot_pn = _edot_PN(pgrid.flatten(), egrid.flatten(), risco, psep).reshape(u.size, w.size, z.size)
 
                 self.pdot_interp_A = TricubicSpline(u, w, z, pdot / pdot_pn)
@@ -584,7 +584,7 @@ class KerrEccEqFlux(ODEBase):
         if z < edge_buffer or z > 1 - edge_buffer:
             raise TrajectoryOffGridException("Interpolation: a out of bounds.")
 
-        if self.flux_output_convention == "ELQ":
+        if self.flux_output_convention == "ELQ": ##this
             EdotPN, LdotPN = _PN_alt(p, e)
             if in_region_A:
                 Edot = -self.Edot_interp_A(u, w, z) * EdotPN
@@ -637,6 +637,10 @@ class SuperKludgeFlux(KerrEccEqFlux):
         evolve_1PA (bool) : whether to include 1PA corrections.
         evolve_primary (bool) : whether to evolve MBH mass M and spin a/chi1.
         evolve_2PA (bool) : whether to include 2PA corrections.
+        deviation_included (bool) : whether to include 2PA corrections.
+        del_0: Deviation Vector 0th Order
+        del_1: Deviation Vector 1th Order
+        del_2 Deviation Vector 1th Order
     """
 
     def add_fixed_parameters(self, m1: float, m2: float, a: float, additional_args = None):
@@ -668,6 +672,30 @@ class SuperKludgeFlux(KerrEccEqFlux):
             self.evolve_2PA = bool(additional_args[3]) #whether to include 2PA corrections
         except IndexError:
             self.evolve_2PA = True #defaults to True
+
+        try:
+            self.deviation_included = bool(additional_args[4]) #whether to add deviation
+       
+        except IndexError:
+            self.deviation_included = False #defaults to False
+
+        if(self.deviation_included):
+            try:
+                self.del_0_p=additional_args[5]
+                self.del_0_e=additional_args[6]
+                self.del_1_p=additional_args[7]
+                self.del_1_e=additional_args[8]
+                self.del_2_p=additional_args[9]
+                self.del_2_e=additional_args[10]
+            except:
+                print("deviation not defined. Default to Zero")
+                self.del_0_p=0
+                self.del_0_e=0
+                self.del_1_p=0
+                self.del_1_e=0
+                self.del_2_p=0
+                self.del_2_e=0
+
 
         #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA)
         
@@ -704,11 +732,13 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
         Edot, Ldot = self.interpolate_flux_grids(p, e, x, a=a_at_t, pLSO=self.p_sep_cache)
 
+        Edot=(1+self.massratio * self.del_0_p)*Edot
+        Ldot=(1+self.massratio * self.del_0_e)*Ldot            #checck it there is a discrepancy here
+                                                             # next order deviations are changing 1st and 2nd order in p,e not E and L
+
         return [Edot, Ldot, 0.0, Omega_phi, Omega_theta, Omega_r, 0.0, 0.0] #we will add delta_m1_dot, delta_a_dot in modify_rhs
 
-    def modify_rhs(
-        self, ydot: np.ndarray, y: np.ndarray, **kwargs
-    ) -> None:
+    def modify_rhs( self, ydot: np.ndarray, y: np.ndarray, **kwargs) -> None:
         """
         This function allows the user to modify the right-hand side of the ODE after any required Jacobian transforms
         have been applied. Note: modification is in place.
@@ -762,10 +792,10 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
             #adding 1PA corrections:
             pdot1PAval = self.massratio * pdot1PA(a_at_t, p, e, self.chi2) #adiabatic pdot, edot are scaled by the massratio. So we lose one factor of massratio here.
-            pdot += pdot1PAval
+            pdot +=(1+ self.del_1_p*self.massratio)*pdot1PAval     #added deviation
 
             edot1PAval = self.massratio * edot1PA(a_at_t, p, e, self.chi2)
-            edot += edot1PAval
+            edot +=(1+ self.del_1_e*self.massratio)*edot1PAval        #added deviation
 
             Omega_phi_1PAval = self.massratio * OmegaPhi1PA(a_at_t, p, e, self.chi2) #adiabatic Omega_phi, Omega_r NOT scaled by the massratio. So we keep the factor of massratio here.
             Omega_phi += Omega_phi_1PAval
@@ -777,10 +807,10 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
             #adding 2PA corrections:
             pdot2PAval = self.massratio**2 * pdot2PA(a_at_t, p, e, self.chi2)
-            pdot += pdot2PAval
+            pdot +=(1+ self.del_2_p*self.massratio)*pdot2PAval     #added deviation
             
             edot2PAval = self.massratio**2 * edot2PA(a_at_t, p, e, self.chi2)
-            edot += edot2PAval
+            edot +=(1+ self.del_2_e*self.massratio)*edot2PAval  #added deviation
 
             Omega_phi_2PAval = self.massratio**2 * OmegaPhi2PA(a_at_t, p, e, self.chi2)
             Omega_phi += Omega_phi_2PAval

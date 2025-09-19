@@ -801,7 +801,7 @@ def _KerrEqSpinFrequenciesCorrections_kernel_inner(a, p, e, x):
             (-2 * am1 * (r1 - r3) * xi) / ((a * a) * r1)
             + (r2 * VPhir3 * _deltaRt(r3, am1, a0, a1, a2)) / (r2 - r3)
         )
-    ) / (r3 * r3)
+    ) / (r3 * r3)  #here?
 
     deltaIPhi2 = -(
         (dE + dK + dPi) / (pow(1 - (En * En), 1.5) * sqrt((r1 - r3) * (r2 - r4)))

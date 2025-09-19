@@ -24,6 +24,7 @@ if use_gpu:
 else:
     xp = np
 
+#FFT algorithms are most efficient (and sometimes require) input lengths that are powers of 2.
 def zero_pad(data):
     N = len(data)
     pow_2 = xp.ceil(np.log2(N))

@@ -63,7 +63,7 @@ def zero_pad(data):
     pow_2 = xp.ceil(np.log2(N))
     return xp.pad(data,(0,int((2**pow_2)-N)),'constant')
 
-def inner_prod(sig1_f,sig2_f,N_t,delta_t,PSD):
+def inner_prod(sig1_f,sig2_f,N_t,delta_t,PSD):#check
     """
     Compute stationary noise-weighted inner product
     Inputs: sig1_f and sig2_f are signals in frequency domain
@@ -76,7 +76,7 @@ def inner_prod(sig1_f,sig2_f,N_t,delta_t,PSD):
     prefac = 4*delta_t / N_t
     sig2_f_conj = xp.conjugate(sig2_f)
     return prefac * xp.real(xp.sum((sig1_f * sig2_f_conj)/PSD))
-def SNR_function(sig1_t, dt, N_channels = 2):
+def SNR_function(sig1_t, dt, N_channels = 2): #check
     N_t = len(sig1_t[0])
 
     sig1_f = [xp.fft.rfft(zero_pad(sig1_t[i])) for i in range(N_channels)]

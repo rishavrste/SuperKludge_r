@@ -67,7 +67,8 @@ dependencies = [
   #@DEPS_CUPYCUDA@,
   #@DEPS_FEWCORE@,
   "jupyter (>=1.1.1,<2.0.0)",
-  "matplotlib (>=3.10.6,<4.0.0)"
+  "matplotlib (>=3.10.6,<4.0.0)",
+  "eryn (>=1.2.2,<2.0.0)"
 ]
 
 optional-dependencies.doc = [

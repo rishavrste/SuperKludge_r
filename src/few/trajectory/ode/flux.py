@@ -643,19 +643,18 @@ class SuperKludgeFlux(KerrEccEqFlux):
         del_2 Deviation Vector 1th Order
     """
 
+
     def add_fixed_parameters(self, m1: float, m2: float, a: float, additional_args = None):
 
         #print("additional args: ", additional_args)
 
         #this is where we initialize additional args like chi2, massratio, flags for 1PA, 2PA, primary evolution.
-        #expected order: addiational_args = [chi2, 1PA_flag, evolve_primary_flag, 2PA_flag]
                 
         self.massratio = m1 * m2 / (m1 + m2) ** 2
         self.m1 = m1
         
         self.a = a
         self.chi2 = additional_args[0] #secondary spin (dimless)
-
         try:
             self.evolve_1PA = bool(additional_args[1]) #whether to include 1PA corrections.
         except IndexError:
@@ -697,7 +696,7 @@ class SuperKludgeFlux(KerrEccEqFlux):
                 self.del_2_e=0
 
 
-        #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA)
+        print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included)
         
         if additional_args is None:
             self.num_add_args = 0

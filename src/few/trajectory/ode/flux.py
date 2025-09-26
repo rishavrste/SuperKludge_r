@@ -696,7 +696,7 @@ class SuperKludgeFlux(KerrEccEqFlux):
                 self.del_2_e=0
 
 
-        print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included)
+        #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included)
         
         if additional_args is None:
             self.num_add_args = 0
@@ -730,7 +730,6 @@ class SuperKludgeFlux(KerrEccEqFlux):
         Omega_phi, Omega_theta, Omega_r = get_fundamental_frequencies(a_at_t, p, e, x)
 
         Edot, Ldot = self.interpolate_flux_grids(p, e, x, a=a_at_t, pLSO=self.p_sep_cache)
-
         Edot=(1+self.massratio * self.del_0_p)*Edot
         Ldot=(1+self.massratio * self.del_0_e)*Ldot            #checck it there is a discrepancy here
                                                              # next order deviations are changing 1st and 2nd order in p,e not E and L

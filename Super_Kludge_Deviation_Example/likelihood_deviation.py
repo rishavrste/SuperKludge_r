@@ -66,39 +66,16 @@ class EMRI_likelihood():
     "likelihood class for our sampler"
     def __init__(self,use_gpu,x):
         self.use_gpu=use_gpu
-        #have to see if we need all these calculated or not
-        # keyword arguments for inspiral generator (EMRIInspiral)
-        inspiral_kwargs={
-                "DENSE_STEPPING": 0,  # we want a sparsely sampled trajectory
-                "buffer_length": int(1e3),  # all of the trajectories will be well under len = 1000
-            }
 
-        # keyword arguments for inspiral generator (RomanAmplitude)
-        amplitude_kwargs = {
-            "buffer_length": int(1e3),  # all of the trajectories will be well under len = 1000
-            "use_gpu": use_gpu  # GPU is available in this class
-        }
-
-        # keyword arguments for Ylm generator (GetYlms)
-        Ylm_kwargs = {
-            "assume_positive_m": False  # if we assume positive m, it will generate negative m for all m>0
-        }
-
-        # keyword arguments for summation generator (InterpolatedModeSum)
-        sum_kwargs = {
-            "use_gpu": use_gpu,  # GPU is available for this type of summation
-            "pad_output": False,
-        }
+        sum_kwargs = {"pad_output": False}
 
         #time or freq?
         superkludge_wave = GenerateEMRIWaveform(SuperKludgeWaveform,
-                                    inspiral_kwargs=inspiral_kwargs,
-                                    amplitude_kwargs=amplitude_kwargs,
-                                    Ylm_kwargs=Ylm_kwargs,
                                     sum_kwargs=sum_kwargs,
                                     # output_type=return_type,
                                     use_gpu=use_gpu,
                                     return_list=True)
+        
         SK_traj = EMRIInspiral(func=SuperKludgeFlux)
         self.superkludge_wave=superkludge_wave
         self.SK_traj=SK_traj

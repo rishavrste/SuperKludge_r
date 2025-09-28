@@ -2,7 +2,6 @@
 __pycache__/
 *.py[cod]
 *$py.class
-Super_Kludge_Deviation_Example/first_sampling_data.txt
 # C extensions
 *.so
 
@@ -25,7 +24,6 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-Super_Kludge_Deviation_Example/first_sampling_data.txt
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

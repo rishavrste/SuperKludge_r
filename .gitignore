@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+Super_Kludge_Deviation_Example/first_sampling_data.txt
 # C extensions
 *.so
 

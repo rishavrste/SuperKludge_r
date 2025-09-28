@@ -22,16 +22,16 @@ parser.add_argument('x_path', type=str)
 args = parser.parse_args()
 x=np.loadtxt(args.x_path)
 
-emri=likelihood_deviation.EMRI_likelihood(False)
- 
+emri=likelihood_deviation.EMRI_likelihood(False,x)
 
 def log_like_likelihood(x):
-    X=x+[] #whatever element we need to be constant
+
+    X=x+[]                  #whatever element we need to be constant
     emri.set_args(X)
     try:
         log_like = emri.likelihood()
     except:
-        return -np.inf # a very high value 
+        return -np.inf      # a very high value 
     return log_like
 
 

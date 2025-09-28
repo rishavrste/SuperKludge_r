@@ -681,20 +681,46 @@ class SuperKludgeFlux(KerrEccEqFlux):
         if(self.deviation_included):
             try:
                 self.del_0_p=additional_args[5]
+            except:
+                print("deviation 0_P not defined. Default to Zero")
+                self.del_0_p=0
+
+            try:
                 self.del_0_e=additional_args[6]
+            except:
+                print("deviation 0_e not defined. Default to Zero")
+                self.del_0_e=0.0
+                
+            try:
                 self.del_1_p=additional_args[7]
+            except:
+                print("deviation 1_p not defined. Default to Zero")
+                self.del_1_p=0.0
+
+            try:
                 self.del_1_e=additional_args[8]
+            except:
+                print("deviation 1_e not defined. Default to Zero")
+                self.del_1_e=0.0
+
+            try:
                 self.del_2_p=additional_args[9]
+            except:
+                print("deviation 2_P not defined. Default to Zero")
+                self.del_2_p=0
+            try:
                 self.del_2_e=additional_args[10]
             except:
-                print("deviation not defined. Default to Zero")
+                print("deviation 0_P not defined. Default to Zero")
+                self.del_2_e=0.0
+            
+        else:
                 self.del_0_p=0
                 self.del_0_e=0
                 self.del_1_p=0
                 self.del_1_e=0
                 self.del_2_p=0
                 self.del_2_e=0
-
 
         #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included)
         
@@ -730,9 +756,13 @@ class SuperKludgeFlux(KerrEccEqFlux):
         Omega_phi, Omega_theta, Omega_r = get_fundamental_frequencies(a_at_t, p, e, x)
 
         Edot, Ldot = self.interpolate_flux_grids(p, e, x, a=a_at_t, pLSO=self.p_sep_cache)
-        Edot=(1+self.massratio * self.del_0_p)*Edot
-        Ldot=(1+self.massratio * self.del_0_e)*Ldot            #checck it there is a discrepancy here
-                                                             # next order deviations are changing 1st and 2nd order in p,e not E and L
+        try:
+            Edot=(1+self.massratio * self.del_0_p)*Edot
+            Ldot=(1+self.massratio * self.del_0_e)*Ldot 
+        except:
+            print("First order deviation values not found be careful")
+            print(self.deviation_included)
+                      
 
         return [Edot, Ldot, 0.0, Omega_phi, Omega_theta, Omega_r, 0.0, 0.0] #we will add delta_m1_dot, delta_a_dot in modify_rhs
 

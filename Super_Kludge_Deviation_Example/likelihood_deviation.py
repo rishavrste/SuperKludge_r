@@ -1,5 +1,5 @@
 import numpy as np
-import cupy as cp
+# import cupy as cp
 import matplotlib.pyplot as plt
 from typing import Optional, Type, Union
 from scipy.interpolate import CubicSpline
@@ -59,7 +59,8 @@ def get_psd(f):
 
     #used from mismatch.py
 def inner_product(x, h, del_f,sn_f): 
-    return 4 * del_f* np.real(np.sum(np.conj(x) * h / sn_f))
+    first=4 * del_f* np.real(np.sum(np.conj(x[0]) * h[0] / sn_f))
+    return first + 4 * del_f* np.real(np.sum(np.conj(x[1]) * h[1] / sn_f))
 
 #class EMRI_likelihood(SuperKludgeFlux,SuperKludgeWaveform):
 class EMRI_likelihood():
@@ -82,7 +83,7 @@ class EMRI_likelihood():
         self.x=x
         
     def set_args(self,m1,m2,a,e_0,Y0,dist,qs,phiS,qK,phiK,Phi_phi_0,phi_theta0,phi_r0,dt,T,chi2,evolve_1PA\
-                 ,evolve_primary,evolve_2PA,deviation_included,dev_0,dev_1,dev_2):
+                 ,evolve_primary,evolve_2PA,deviation_included,dev_0=[0.0,0.0],dev_1=[0.0,0.0],dev_2=[0.0,0.0]):
         self.m1 = m1
         self.m2 = m2
         self.a =  a
@@ -137,16 +138,16 @@ class EMRI_likelihood():
         # fft_TD_x_pos = fft_TD_x[positive_frequency_x]
         # psd_plus = get_psd(fft_TD_x_pos) 
         # x_h = inner_product(fft_TD_plus_pos, fft_TD_x_pos, np.diff(freq_x)[0],psd_plus)
-        x_diff_h=self.x[0]-waveform[0]
+        x_diff_h=self.x-waveform
         fft_x_diff_h = np.fft.fftshift(np.fft.fft(x_diff_h)) * self.dt
         freq_x_diff_h = np.fft.fftshift(np.fft.fftfreq(N, self.dt))
         positive_freq_marker = freq_x_diff_h > 0.0
         pos_freq=freq_x_diff_h[positive_freq_marker]
 
-        fft_TD_freq_x_diff_h_pos = fft_x_diff_h[positive_freq_marker]
+        fft_TD_freq_x_diff_h_pos_1 = fft_x_diff_h[0][positive_freq_marker]
+        fft_TD_freq_x_diff_h_pos_2 = fft_x_diff_h[1][positive_freq_marker]
+        fft_TD_freq_x_diff_h_pos = np.stack((fft_TD_freq_x_diff_h_pos_1, fft_TD_freq_x_diff_h_pos_2), axis=1)
         psd_plus = get_psd(pos_freq) 
-
         x_h = inner_product(fft_TD_freq_x_diff_h_pos, fft_TD_freq_x_diff_h_pos, np.diff(freq_x_diff_h)[0],psd_plus)
         likelihood=-0.5 * x_h
-
         return likelihood

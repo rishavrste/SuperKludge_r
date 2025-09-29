@@ -722,7 +722,7 @@ class SuperKludgeFlux(KerrEccEqFlux):
                 self.del_2_p=0
                 self.del_2_e=0
 
-        #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included)
+        #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included,self.del_0_p,self.chi2)
         
         if additional_args is None:
             self.num_add_args = 0

@@ -6,9 +6,9 @@ from eryn.moves import GaussianMove, StretchMove, CombineMove
 from eryn.utils.utility import groups_from_inds
 import matplotlib.pyplot as plt
 import numpy as np
-
+import likelihood_deviation
 # set random seed
-np.random.seed(42)
+np.random.seed(53)
 import corner
 import sys
 import likelihood_deviation
@@ -16,111 +16,117 @@ import os
 import argparse
 
 
-def compute_ranges(truth, cov, n_std=5):
 
-    N = truth.size
-    #first to check if covariance matrix makes sense
-    if cov.ndim == 1:
-        if cov.size != N:
-            raise ValueError(f"Variance vector length ({cov.size}) doesn't match truth length ({N}).")
-        else:   #maybe it's just the variance matrix
-            variance=cov
-    elif cov.ndim == 2:
-        if cov.shape[0] != cov.shape[1]:
-            raise ValueError("Covariance input is 2D but not square. Are you sure it is the covariance matrix")
-        if cov.shape[0] != N:
-            raise ValueError(f"Covariance matrix size ({cov.shape[0]}) doesn't match truth length ({N}).")
-        variances = np.diag(cov)
-    else:
-        raise ValueError("Covariance must be either 1D variances or a 2D covariance matrix.")
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="To include output directory and data files")
+    parser.add_argument('x_path', type=str)
+    parser.add_argument('truth_path', type=str)
+    parser.add_argument('cov_path', type=str)
+    parser.add_argument('use_gpu', type=str)
+    parser.add_argument('output', type=str, help='output directory for corner plot')
+    parser.add_argument('n_std', type=int, help='to set the prior range, n_std * std, give n_std')
+    parser.add_argument('nwalkers', type=int, help='Number of Walkers')
+    parser.add_argument('niter', type=int, help='Number of Waiterationlkers')
+    args = parser.parse_args()
+    return args
+
+#    x=np.loadtxt(args.x_path)
+
+class Sampler(likelihood_deviation):
+    def __init__(self, x, truth,cov,n_std,use_gpu):
+        super.init(use_gpu,x)
+        self.truth=truth
+        self.cov=cov
+        self.n_std=n_std
+
+        #Define some default parameters
+        #have to make this thing better for future use
+        self.set_args(Y0=1.0,T=0.5,dt=10.0,evolve_1PA = False,evolve_primary = False,evolve_2PA = False,
+                  deviation_included=False,qK = 1,phiK = 1 + np.pi/3,Phi_theta0 =0.2)
+
+    def log_like_likelihood(self,x_param):
+        param_names = ['m1','m2','p0','e0','dist','qS','phiS','Phi_phi0','Phi_r0','chi2'] #works
+        self.set_args(m1=10**x_param[0],m2=10**x_param[1],p0=x_param[2],e0=x_param[3],dist=x_param[4],qS=x_param[5],phiS=x_param[6],Phi_phi0=x_param[7],phi_r0=x_param[8],chi2=x_param[9])
+        try:
+            log_like = self.likelihood()
+        except:
+            print("Exception Occured")
+            return -np.inf      # a very high value 
+        return log_like
     
-    small_neg = variances <= 0
-    if np.any(small_neg):
-            raise ValueError(f"Covariance diagonal contains negative values or zero: {variances[small_neg]}")
+    def compute_ranges(self):
+        N = self.truth.size
+        #first to check if covariance matrix makes sense
+        if self.cov.ndim == 1:
+            if self.cov.size != N:
+                raise ValueError(f"Variance vector length ({self.cov.size}) doesn't match truth length ({N}).")
+            else:   #maybe it's just the variance matrix
+                variance=self.cov
+        elif self.cov.ndim == 2:
+            if self.cov.shape[0] != self.cov.shape[1]:
+                raise ValueError("Covariance input is 2D but not square. Are you sure it is the covariance matrix")
+            if self.cov.shape[0] != N:
+                raise ValueError(f"Covariance matrix size ({self.cov.shape[0]}) doesn't match truth length ({N}).")
+            variances = np.diag(self.cov)
+        else:
+            raise ValueError("Covariance must be either 1D variances or a 2D covariance matrix.")
 
-    std = np.sqrt(variances)
-    lower = truth - n_std * std
-    upper = truth + n_std * std
-    ranges = np.vstack([lower, upper]).T  # shape (N,2)
-    ranges_list = [tuple(r) for r in ranges.tolist()]
-    return ranges, ranges_list
+        neg = variances <= 0
+        if np.any(neg):
+                raise ValueError(f"Covariance diagonal contains negative values or zero: {variances[neg]}")
+        std = np.sqrt(variances)
+        std[0]=np.log10(std[0])     #mass1
+        std[1]=np.log10(std[1])     #mass2
+        print("Standard Dev for mass, see it's negative",std[0],std[1])
 
-parser = argparse.ArgumentParser(description="To include output directory and true data")
-parser.add_argument('x_path', type=str)
-parser.add_argument('truth_path', type=str)
-parser.add_argument('cov_path', type=str)
-parser.add_argument('use_gpu', type=str)
-parser.add_argument('output', type=float, help='output directory for corner plot')
-args = parser.parse_args()
-x=np.loadtxt(args.x_path)
+        lower = self.truth - self.n_std * std
+        upper = self.truth + self.n_std * std
+        ranges = np.vstack([lower, upper]).T  # shape (N,2)
+       # ranges_list = [tuple(r) for r in ranges.tolist()]
+        return ranges
 
-#Define some default parameters
-emri=likelihood_deviation.EMRI_likelihood(args.use_gpu,x)
-emri.set_args(Y0=1.0,T=0.5,dt=10.0,evolve_1PA = False,evolve_primary = False,evolve_2PA = False,
-              deviation_included=False,qK = 1,phiK = 1 + np.pi/3,Phi_theta0 =0.2)
+def main():
+    args=parse_arguments()
+    ndim = 10 # or make changes if everything works
+    nwalkers = args.nwalkers
+    truth=np.asarray(np.loadtxt(args.x_path))
+    Cov_matrix=np.asarray(np.loadtxt(args.cov_path))
+    x=np.loadtxt(args.x_path)
+    sampler=Sampler(x,truth,Cov_matrix,args.n_std,args.use_gpu)
 
-
-def log_like_likelihood(x):
-    param_names = ['m1','m2','p0','e0','dist','qS','phiS','Phi_phi0','Phi_r0','chi2'] #works
-    emri.set_args(m1=10**x[0],m2=10**x[1],p0=x[2],e0=x[3],dist=x[4],qS=x[5],phiS=x[6],Phi_phi0=x[7],phi_r0=x[8],chi2=x[9])
     try:
-        log_like = emri.likelihood()
-    except:
-        print("Exception Occured")
-        return -np.inf      # a very high value 
-    return log_like
+        ranges = sampler.compute_ranges()
+    except ValueError as e:
+        print("Error computing ranges:", e, file=sys.stderr)
+        sys.exit(2)
 
-
-ndim = 10 # or so
-nwalkers = 500
-
-truth=np.asarray(np.loadtxt(args.x_path))
-Cov_matrix=np.asarray(np.loadtxt(args.cov_path))
-
-try:
-    ranges, ranges_list = compute_ranges(truth, Cov_matrix, n_std=args.n_std)
-except ValueError as e:
-    print("Error computing ranges:", e, file=sys.stderr)
-    sys.exit(2)
-
-priors_in = {i: uniform_dist(range[i][0], range[i][1]) for i in range(ndim)}
-priors = ProbDistContainer(priors_in)
-
-ensemble = EnsembleSampler(
-    nwalkers,
-    ndim,
-    log_like_likelihood,
-    priors)
-
-# starting positions randomized throughout prior
-coords = priors.rvs(size=(nwalkers,))
-
-# check log_like
-log_like_test = np.asarray([log_like_likelihood(coords[i]) for i in range(nwalkers)])
-if np.any(log_like_test == -np.inf):
-    print("Check your prior or likelihood function")
-
-
-# check log_prior
-log_prior_test = np.asarray([priors.logpdf(coords[i]) for i in range(nwalkers)])
-print("\nLog-prior - should be constant for uniform prior for a paramter:\n", log_prior_test)
-
-
-nsteps = 20000
-burn = 250
-thin_by = 50
-out = ensemble.run_mcmc(coords, nsteps, burn=burn, progress=True, thin_by=thin_by)
-
-samples = ensemble.get_chain()['model_0'].reshape(-1, ndim)
-fig = corner.corner(samples, truths=truth)
-
-output_=args.output
-os.makedirs(output_, exist_ok=True)
-fig.savefig(output_+"/try.png", dpi=300, bbox_inches="tight")
-
-ll = ensemble.backend.get_log_like()
-lp = ensemble.backend.get_log_prior()
-
-print(f"Number of iterations {ensemble.backend.iteration}\n")
-# equivalent to ensemble.get_log_like() and ensemble.get_log_prior()
-print(ll.shape, ll, lp)
+    priors_in = {i: uniform_dist(range[i][0], range[i][1]) for i in range(ndim)}
+    priors = ProbDistContainer(priors_in)
+    ensemble = EnsembleSampler(
+        nwalkers,
+        ndim,
+        sampler.log_like_likelihood,
+        priors)
+    # starting positions randomized throughout prior
+    coords = priors.rvs(size=(nwalkers,))
+    # check log_like
+    log_like_test = np.asarray([sampler.log_like_likelihood(coords[i]) for i in range(nwalkers)])
+    if np.any(log_like_test == -np.inf):
+        print("Check your prior or likelihood function")
+    # check log_prior
+    log_prior_test = np.asarray([priors.logpdf(coords[i]) for i in range(nwalkers)])
+    print("\nLog-prior - should be constant for uniform prior for a paramter:\n", log_prior_test)
+    nsteps = 20000
+    burn = 250
+    thin_by = 50
+    out = ensemble.run_mcmc(coords, nsteps, burn=burn, progress=True, thin_by=thin_by)
+    samples = ensemble.get_chain()['model_0'].reshape(-1, ndim)
+    fig = corner.corner(samples, truths=truth)
+    output_=args.output
+    os.makedirs(output_, exist_ok=True)
+    fig.savefig(output_+"/try_first_sampling.png", dpi=300, bbox_inches="tight")
+    ll = ensemble.backend.get_log_like()
+    lp = ensemble.backend.get_log_prior()
+    print(f"Number of iterations {ensemble.backend.iteration}\n")
+    # equivalent to ensemble.get_log_like() and ensemble.get_log_prior()
+    print(ll.shape, ll, lp)

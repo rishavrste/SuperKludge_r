@@ -48,6 +48,7 @@ class Sampler(likelihood_deviation.EMRI_likelihood):
        # self.param_names = ['m1','m2','a','p0','e0','dist','qS','phiS','Phi_phi0','Phi_r0']
 
     def log_like_likelihood(self,x_param):
+        print(x_param)
         self.set_args_faster_likelihood(m1=10**x_param[0],m2=10**x_param[1],a=x_param[2],p0=x_param[3],
                       e_0=x_param[4],dist=x_param[5],qS=x_param[6],phiS=x_param[7],Phi_phi0=x_param[8],Phi_r0=x_param[9])
         try:

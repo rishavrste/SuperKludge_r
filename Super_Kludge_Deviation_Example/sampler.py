@@ -17,39 +17,42 @@ import argparse
 
 
 
-def parse_arguments():
+def parse_arguments(args=None):
     parser = argparse.ArgumentParser(description="To include output directory and data files")
     parser.add_argument('x_path', type=str)
     parser.add_argument('truth_path', type=str)
     parser.add_argument('cov_path', type=str)
-    parser.add_argument('use_gpu', type=str)
+    parser.add_argument('use_gpu', type=bool)
     parser.add_argument('output', type=str, help='output directory for corner plot')
-    parser.add_argument('n_std', type=int, help='to set the prior range, n_std * std, give n_std')
+    parser.add_argument('n_std', type=float, help='to set the prior range, n_std * std, give n_std')
     parser.add_argument('nwalkers', type=int, help='Number of Walkers')
     parser.add_argument('niter', type=int, help='Number of Waiterationlkers')
     args = parser.parse_args()
     return args
 
 #    x=np.loadtxt(args.x_path)
-
-class Sampler(likelihood_deviation):
-    def __init__(self, x, truth,cov,n_std,use_gpu):
-        super.init(use_gpu,x)
+#have to include ways which does not require truth and covaraince 
+class Sampler(likelihood_deviation.EMRI_likelihood):
+    def __init__(self, x, truth=None,cov=None,n_std=None,use_gpu=False):
+        super().__init__(use_gpu,x)
         self.truth=truth
         self.cov=cov
         self.n_std=n_std
 
         #Define some default parameters
         #have to make this thing better for future use
-        self.set_args(Y0=1.0,T=0.5,dt=10.0,evolve_1PA = False,evolve_primary = False,evolve_2PA = False,
-                  deviation_included=False,qK = 1,phiK = 1 + np.pi/3,Phi_theta0 =0.2)
+        self.set_args(xI0=1.0,T=0.1,dt=10.0,evolve_1PA = False,evolve_primary = False,evolve_2PA = False,
+                  deviation_included=False,qK = 1,phiK = 1 + np.pi/3,Phi_theta0 =0.2,chi2=0.8,dev_0=[0,0],
+                  dev_1=[0,0],dev_2=[0,0])
+       # self.param_names = ['m1','m2','a','p0','e0','dist','qS','phiS','Phi_phi0','Phi_r0']
 
     def log_like_likelihood(self,x_param):
-        param_names = ['m1','m2','p0','e0','dist','qS','phiS','Phi_phi0','Phi_r0','chi2'] #works
-        self.set_args(m1=10**x_param[0],m2=10**x_param[1],p0=x_param[2],e0=x_param[3],dist=x_param[4],qS=x_param[5],phiS=x_param[6],Phi_phi0=x_param[7],phi_r0=x_param[8],chi2=x_param[9])
+        self.set_args_faster_likelihood(m1=10**x_param[0],m2=10**x_param[1],a=x_param[2],p0=x_param[3],
+                      e_0=x_param[4],dist=x_param[5],qS=x_param[6],phiS=x_param[7],Phi_phi0=x_param[8],Phi_r0=x_param[9])
         try:
             log_like = self.likelihood()
         except:
+            print(log_like)
             print("Exception Occured")
             return -np.inf      # a very high value 
         return log_like
@@ -75,23 +78,26 @@ class Sampler(likelihood_deviation):
         if np.any(neg):
                 raise ValueError(f"Covariance diagonal contains negative values or zero: {variances[neg]}")
         std = np.sqrt(variances)
-        std[0]=np.log10(std[0])     #mass1
-        std[1]=np.log10(std[1])     #mass2
-        print("Standard Dev for mass, see it's negative",std[0],std[1])
-
         lower = self.truth - self.n_std * std
         upper = self.truth + self.n_std * std
+        
+        lower[0:2] = np.log10(lower[0:2])
+        upper[0:2] = np.log10(upper[0:2])
+
         ranges = np.vstack([lower, upper]).T  # shape (N,2)
+        print("ranges\n",ranges)
        # ranges_list = [tuple(r) for r in ranges.tolist()]
         return ranges
 
-def main():
-    args=parse_arguments()
-    ndim = 10 # or make changes if everything works
+if __name__ == "__main__":
+    args=parse_arguments() #see it works with CLI also
     nwalkers = args.nwalkers
-    truth=np.asarray(np.loadtxt(args.x_path))
+    truth=np.asarray(np.loadtxt(args.truth_path))
     Cov_matrix=np.asarray(np.loadtxt(args.cov_path))
     x=np.loadtxt(args.x_path)
+    ndim = len(truth)
+    # print(Cov_matrix)
+    # print(Cov_matrix.shape)
     sampler=Sampler(x,truth,Cov_matrix,args.n_std,args.use_gpu)
 
     try:
@@ -100,7 +106,7 @@ def main():
         print("Error computing ranges:", e, file=sys.stderr)
         sys.exit(2)
 
-    priors_in = {i: uniform_dist(range[i][0], range[i][1]) for i in range(ndim)}
+    priors_in = {i: uniform_dist(ranges[i][0], ranges[i][1]) for i in range(ndim)}
     priors = ProbDistContainer(priors_in)
     ensemble = EnsembleSampler(
         nwalkers,

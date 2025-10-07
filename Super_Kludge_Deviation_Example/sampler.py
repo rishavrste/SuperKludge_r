@@ -110,7 +110,10 @@ if __name__ == "__main__":
   
     priors_in = {i: uniform_dist(ranges[i][0], ranges[i][1]) for i in range(ndim)}
     priors = ProbDistContainer(priors_in)
-    print("Shoud be zero",sampler.log_like_likelihood(truth))
+    check_truth=truth
+    check_truth[0]=np.log10(truth[0])
+    check_truth[1]=np.log10(truth[1])
+    print("Shoud be zero",sampler.log_like_likelihood(check_truth))
     ensemble = EnsembleSampler(
         nwalkers,
         ndim,

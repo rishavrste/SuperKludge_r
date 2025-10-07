@@ -6,6 +6,7 @@ from eryn.moves import GaussianMove, StretchMove, CombineMove
 from eryn.utils.utility import groups_from_inds
 import matplotlib.pyplot as plt
 import numpy as np
+#import cupy as cp
 import likelihood_deviation
 # set random seed
 np.random.seed(53)
@@ -105,9 +106,10 @@ if __name__ == "__main__":
     except ValueError as e:
         print("Error computing ranges:", e, file=sys.stderr)
         sys.exit(2)
-
+  
     priors_in = {i: uniform_dist(ranges[i][0], ranges[i][1]) for i in range(ndim)}
     priors = ProbDistContainer(priors_in)
+    print("Shoud be zero",sampler.log_like_likelihood(truth))
     ensemble = EnsembleSampler(
         nwalkers,
         ndim,

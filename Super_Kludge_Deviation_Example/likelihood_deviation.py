@@ -70,12 +70,12 @@ class EMRI_likelihood():
     def __init__(self,use_gpu:bool,x):
         self.use_gpu=use_gpu
 
-        sum_kwargs = {"pad_output": False}
+        sum_kwargs = {"pad_output": True}
 
         #time or freq?
         superkludge_wave = GenerateEMRIWaveform(SuperKludgeWaveform,
                                     sum_kwargs=sum_kwargs,
-                                    # output_type=return_type,
+                                    #output_type=return_type,
                                     use_gpu=use_gpu,
                                     return_list=True)
         

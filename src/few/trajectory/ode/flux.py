@@ -692,13 +692,13 @@ class SuperKludgeFlux(KerrEccEqFlux):
                 self.del_0_e=0.0
                 
             try:
-                self.del_1_p=additional_args[7]
+                self.del_1_p=additional_args[7]/self.massratio**2
             except:
                 print("deviation 1_p not defined. Default to Zero")
                 self.del_1_p=0.0
 
             try:
-                self.del_1_e=additional_args[8]
+                self.del_1_e=additional_args[8]/self.massratio**2
             except:
                 print("deviation 1_e not defined. Default to Zero")
                 self.del_1_e=0.0
@@ -756,14 +756,6 @@ class SuperKludgeFlux(KerrEccEqFlux):
         Omega_phi, Omega_theta, Omega_r = get_fundamental_frequencies(a_at_t, p, e, x)
 
         Edot, Ldot = self.interpolate_flux_grids(p, e, x, a=a_at_t, pLSO=self.p_sep_cache)
-        try:
-            Edot=(1+self.massratio * self.del_0_p)*Edot
-            Ldot=(1+self.massratio * self.del_0_e)*Ldot 
-        except:
-            print("First order deviation values not found be careful")
-            print(self.deviation_included)
-                      
-
         return [Edot, Ldot, 0.0, Omega_phi, Omega_theta, Omega_r, 0.0, 0.0] #we will add delta_m1_dot, delta_a_dot in modify_rhs
 
     def modify_rhs( self, ydot: np.ndarray, y: np.ndarray, **kwargs) -> None:

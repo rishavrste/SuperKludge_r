@@ -804,6 +804,21 @@ class SuperKludgeFlux(KerrEccEqFlux):
             pdot +=self.massratio * ((self.A_p + self.B_p * e **2 )/p ** 5.5)
 
             edot +=self.massratio * ((self.A_e + self.B_e * e **2 )/p ** 6.5)
+        
+        if self.evolve_1PA:
+
+            #adding 1PA corrections:
+            pdot1PAval = self.massratio * pdot1PA(a_at_t, p, e, self.chi2) #adiabatic pdot, edot are scaled by the massratio. So we lose one factor of massratio here.
+            pdot +=pdot1PAval    
+
+            edot1PAval = self.massratio * edot1PA(a_at_t, p, e, self.chi2)
+            edot +=edot1PAval        #added deviation
+
+            Omega_phi_1PAval = self.massratio * OmegaPhi1PA(a_at_t, p, e, self.chi2) #adiabatic Omega_phi, Omega_r NOT scaled by the massratio. So we keep the factor of massratio here.
+            Omega_phi += Omega_phi_1PAval
+
+            Omega_r_1PAval = self.massratio * Omegar1PA(a_at_t, p, e, self.chi2)
+            Omega_r += Omega_r_1PAval
 
 
         if self.evolve_2PA:

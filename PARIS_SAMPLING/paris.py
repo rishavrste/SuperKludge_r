@@ -3,7 +3,7 @@ import numpy as np
 import cupy as cp
 import matplotlib.pyplot as plt
 
-from itertooåls import product
+from itertools import product
 import os
 import h5py
 from tqdm import tqdm

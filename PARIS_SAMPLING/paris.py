@@ -221,8 +221,8 @@ def loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e
     add_args__ = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,\
                 dev0p_,dev0e_,dev_1_p,dev_1_e,dev_2_p,dev_2_e]
     waveform_temp=np.array(superkludge_wave(m1_, m2_, a_, p0_, e0_, xI0, dist, qS_, phiS_, qK, phiK, Phi_phi0_, Phi_theta0, Phi_r0_, *add_args__, dt=dt, T=T,use_gpu=use_gpu))
-    dh=waveform_true-waveform_temp
-    diff_inner=inner_product(dh,dh,PSD,dt,use_gpu=use_gpu)
+    dh_=waveform_true-waveform_temp
+    diff_inner=inner_product(dh_,dh_,PSD,dt,use_gpu=use_gpu)
     return -0.5 * diff_inner
 
 def log_density(params):
@@ -412,7 +412,7 @@ fig = corner.corner(
     fill_contours=True,
     range = param_ranges
 )
-samples, weights = sampler.get_samples_with_weights(flatten=True)
+samples, weights =  sampler.get_samples_with_weights(flatten=True)
     
 print(f"Total samples generated: {len(samples):,}")
 print(f"Effective sample size: {1/np.sum(weights**2):.1f}")

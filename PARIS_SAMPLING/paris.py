@@ -204,7 +204,8 @@ superkludge_wave = GenerateEMRIWaveform(SuperKludgeWaveform,\
                                     use_gpu=use_gpu)
 print(add_args)
 
-waveform_true = superkludge_wave(m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0, *add_args, dt=dt, T=T)
+waveform_true = np.array(superkludge_wave(m1, m2, a, p0, e0, xI0, dist,
+                                           qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0, *add_args, dt=dt, T=T))
 PSD=generate_PSD(waveform_true,dt,use_gpu=use_gpu,
                 noise_PSD=get_sensitivity,
                 noise_kwargs={'sens_fn':CornishLISASens,'return_type':'PSD'},
@@ -219,8 +220,9 @@ add_args = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,dev_
 def loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e_):
     add_args__ = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,\
                 dev0p_,dev0e_,dev_1_p,dev_1_e,dev_2_p,dev_2_e]
-    waveform_temp=superkludge_wave(m1_, m2_, a_, p0_, e0_, xI0, dist, qS_, phiS_, qK, phiK, Phi_phi0_, Phi_theta0, Phi_r0_, *add_args__, dt=dt, T=T,use_gpu=use_gpu)
-    diff_inner=inner_product(waveform_temp,waveform_true,PSD,dt,use_gpu=use_gpu)
+    waveform_temp=np.array(superkludge_wave(m1_, m2_, a_, p0_, e0_, xI0, dist, qS_, phiS_, qK, phiK, Phi_phi0_, Phi_theta0, Phi_r0_, *add_args__, dt=dt, T=T,use_gpu=use_gpu))
+    dh=waveform_true-waveform_temp
+    diff_inner=inner_product(dh,dh,PSD,dt,use_gpu=use_gpu)
     return -0.5 * diff_inner
 
 def log_density(params):
@@ -235,7 +237,7 @@ def log_density(params):
         log_likes[i] = loglike 
     return log_likes
 
-n=2
+n=5
 logm1lim = [max(0,params_truth_in[0] - n*std[0]), params_truth_in[0] + n*std[0]]
 m2lim = [max(0,params_truth_in[1] - n*std[1]), params_truth_in[1] + n*std[1]]
 alim = [max(-0.999,params_truth_in[2] - n*std[2]), min(params_truth_in[2] + n*std[2], 0.999)]  # a must be <1
@@ -292,9 +294,7 @@ def inverse_prior_transform(x):
     return u
 
 
-savepath = '/deviation_results_PARIS/'
-
-# Create save directory
+savepath = '/home/svu/e1583490/scratch/SuperKludge_r/PARIS_SAMPLING/deviation_results_PARIS/'
 os.makedirs(savepath, exist_ok=True)
 
 

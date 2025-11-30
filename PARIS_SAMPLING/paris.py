@@ -294,7 +294,9 @@ def inverse_prior_transform(x):
     return u
 
 
-savepath = '/home/svu/e1583490/scratch/SuperKludge_r/PARIS_SAMPLING/deviation_results_PARIS/'
+savepath = '/deviation_results_PARIS/'
+
+# Create save directory
 os.makedirs(savepath, exist_ok=True)
 
 

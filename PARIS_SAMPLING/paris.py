@@ -96,7 +96,7 @@ Phi_theta0 =0.5
 Phi_r0 = 0.4
 
 dt = 10.0
-T = 0.2
+T = 1.0
 
 chi2 = 0.0
 
@@ -185,6 +185,7 @@ def logmasstransform(Fisher, m1, index_of_m1 = 0):
     J[index_of_m1,index_of_m1] = m1
     
     return J.T@Fisher@J
+
 fisher_=logmasstransform(Fisher, m1, index_of_m1 = 0)
 cov=np.linalg.inv(fisher_)
 std= np.sqrt(np.diag(cov))
@@ -210,6 +211,7 @@ PSD=generate_PSD(waveform_true,dt,use_gpu=use_gpu,
                 noise_PSD=get_sensitivity,
                 noise_kwargs={'sens_fn':CornishLISASens,'return_type':'PSD'},
                 channels=["A","E"])
+
 chi2=0
 deviation_included=True
 evolve_1PA=False
@@ -220,9 +222,10 @@ add_args = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,dev_
 def loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e_):
     add_args__ = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,\
                 dev0p_,dev0e_,dev_1_p,dev_1_e,dev_2_p,dev_2_e]
-    waveform_temp=np.array(superkludge_wave(m1_, m2_, a_, p0_, e0_, xI0, dist, qS_, phiS_, qK, phiK, Phi_phi0_, Phi_theta0, Phi_r0_, *add_args__, dt=dt, T=T,use_gpu=use_gpu))
-    dh_=waveform_true-waveform_temp
-    diff_inner=inner_product(dh_,dh_,PSD,dt,use_gpu=use_gpu)
+    waveform_temp=xp.array(superkludge_wave(m1_, m2_, a_, p0_, e0_, xI0, dist, qS_, phiS_, qK, phiK, Phi_phi0_, Phi_theta0, Phi_r0_, *add_args__, dt=dt, T=T,use_gpu=use_gpu))
+
+    diff_inner=inner_product(waveform_true-waveform_temp,waveform_true-waveform_temp,PSD,dt,use_gpu=use_gpu)
+    #print(diff_inner)
     return -0.5 * diff_inner
 
 def log_density(params):
@@ -237,7 +240,8 @@ def log_density(params):
         log_likes[i] = loglike 
     return log_likes
 
-n=5
+n=3
+
 logm1lim = [max(0,params_truth_in[0] - n*std[0]), params_truth_in[0] + n*std[0]]
 m2lim = [max(0,params_truth_in[1] - n*std[1]), params_truth_in[1] + n*std[1]]
 alim = [max(-0.999,params_truth_in[2] - n*std[2]), min(params_truth_in[2] + n*std[2], 0.999)]  # a must be <1
@@ -302,7 +306,7 @@ os.makedirs(savepath, exist_ok=True)
 
 config = SamplerConfig(
     merge_confidence=0.9,          # Coverage prob → Mahalanobis merge radius R_m (higher is more permissive)
-    alpha=10000,                    # Use recent samples for weighting
+    alpha=5000,                    # Use recent samples for weighting
     trail_size=int(1e3),          # Maximum trials per iteration
     boundary_limiting=True,        # Enable boundary constraints
     use_beta=True,                # Use beta correction for boundaries
@@ -310,25 +314,23 @@ config = SamplerConfig(
     gamma=500,                    # Covariance update frequency
     exclude_scale_z=10,       # No exclusion based on weights
     use_pool=False,               # Set to True for multiprocessing
-    n_pool=4                     # Number of processes (if use_pool=True)
+                # Number of processes (if use_pool=True)
 )
 
 ndim = 11
-n_seed = 50  # Number of initial processes
-init_cov_list = [np.eye(ndim) * 0.05] * n_seed
-sigma= 0.01
-init_cov_list = []
-for i in range(n_seed):
-    init_cov_list.append(sigma**2 * np.eye(ndim))
+n_seed = 100  # Number of initial processes
+init_cov_list = [np.eye(ndim) * 1e-10] * n_seed
+savepath = 'paris_manin_t_1_near_separtrix_1'  # Directory to save results
 
-# Print configuration summary
+# Create save directory
+os.makedirs(savepath, exist_ok=True)
 
 print(f"Problem dimension: {ndim}")
 print(f"Number of processes: {n_seed}")
-print(f"Initial covariance scale: {sigma}")
 print(f"Save path: {savepath}")
 print(f"Multiprocessing: {config.use_pool}")
 # Initialize sampler
+
 print("\nInitializing sampler...")
 sampler = Sampler(
     ndim=ndim, 
@@ -340,33 +342,56 @@ sampler = Sampler(
 )
    # Prepare initial samples using Latin Hypercube Sampling
 print("Preparing LHS samples...")
-sampler.prepare_lhs_samples(lhs_num=int(5e4), batch_size=50)
+# sampler.prepare_lhs_samples(lhs_num=int(5e4), batch_size=50)
+# x = np.linspace(0.49999, 0.50001, 2000)
 
-# Run the sampling process
-print("Starting sampling process...")
-print("(This may take several minutes for 10,000 iterations)")
+# # Generate 99 random points in 11D
+# external_lhs_points = np.random.choice(x, size=(99, 11))
 
+# # Add the "true point" [0.5, 0.5, ..., 0.5] as the 100th point
+# external_lhs_points = np.vstack([external_lhs_points, [0.5]*11])
+
+#best value got so far
+true_point = np.array([0.49950774, 0.50029861, 0.50023106, 0.50000561, 0.50011007,
+        0.49972869, 0.49976471, 0.50000581, 0.5001126 , 0.499542  ,
+        0.50084363])
+
+scatter = 1.0e-7
+points = true_point + np.random.randn(99, 11) * scatter
+# Add the original point as the 100th row
+external_lhs_points = np.vstack([points, true_point])
+print("Shape of points array:", external_lhs_points.shape)
+external_lhs_log_densities = log_density(prior_transform(external_lhs_points))
+print("true points in corrrect space",params_truth_in)
+print("external_lhs_log_densities", external_lhs_log_densities)
+
+
+# external_lhs_points = np.vstack(external_lhs_points)
+# external_lhs_log_densities = np.concatenate(external_lhs_log_densities)
 
 sampler.run_sampling(
-        num_iterations=10000, 
-        savepath=savepath,
-        print_iter=100  # Print progress every 100 iterations
-    )
-    
-print("\nSampling completed successfully!")
+            num_iterations=int(1e5),
+            savepath=savepath,
+            print_iter=100,
+            external_lhs_points=external_lhs_points,
+            external_lhs_log_densities=external_lhs_log_densities,
+            stop_dlogZ=0.01
+        )
+#except Exception as exc:
+ #       print(f"[WARN] PARIS sampling failed: {exc}")
     
 # Gt results
 print("Extracting results...")
-samples, weights = sampler.get_samples_with_weights(flatten=True)
+samples_, weights_ = sampler.get_samples_with_weights(flatten=True)
 
 # Basic analysis
 print(f"\nResults Summary:")
-print(f"Total samples: {len(samples)}")
-print(f"Effective sample size: {1/np.sum(weights**2):.1f}")
+print(f"Total samples: {len(samples_)}")
+print(f"Effective sample size: {1/np.sum(weights_  **2):.1f}")
 
 # Weighted statistics
-weighted_mean = np.average(samples, weights=weights, axis=0)
-weighted_cov = np.cov(samples.T, aweights=weights)
+weighted_mean = np.average(samples_, weights=weights_, axis=0)
+weighted_cov = np.cov(samples_.T, aweights=weights_)
 
 print(f"\nTrue values: {params_truth_in}")
 print(f"Estimated deviation: {weighted_mean}")
@@ -374,52 +399,3 @@ print(f"Mean deviation: {np.linalg.norm(weighted_mean - params_truth_in):.6f}")
 
 print(f"\nTrue covariance diagonal: {np.diag(cov)}")
 print(f"Estimated covariance diagonal: {np.diag(weighted_cov)}")
-
-
-param_ranges= [logm1lim,m2lim,alim,p0lim,e0lim,qSlim,phiSlim,Phi_phi0lim,Phi_r0lim,dev0plim,dev0elim]
-samples, weights = sampler.get_samples_with_weights(flatten=True)
-
-labels = [
-    "logm1",
-    "m2",
-    "a",
-    "p0",
-    "e0",
-    "qS",
-    "phiS",
-    "Phi_phi0",
-    "Phi_r0",
-    "dev0p",
-    "dev0e"
-]
-
-fig = corner.corner(
-    samples,
-    weights=weights,
-    labels=labels,
-    truths=params_truth_in,
-    truth_color='red',
-    color='green',
-    show_titles=True,
-    label_kwargs={"fontsize": 10},
-    title_kwargs={"fontsize": 12},
-    quantiles=[0.16, 0.5, 0.84],
-    smooth=True,
-    bins=50,
-    plot_datapoints=False,
-    hist_kwargs={"density": True, 'linewidth': 2.5},
-    linewidth=2.5,
-    fill_contours=True,
-    range = param_ranges
-)
-samples, weights =  sampler.get_samples_with_weights(flatten=True)
-    
-print(f"Total samples generated: {len(samples):,}")
-print(f"Effective sample size: {1/np.sum(weights**2):.1f}")
-print(f"Weight coefficient of variation: {np.std(weights)/np.mean(weights):.3f}")
-log_densities = sampler.log_density_func(samples)
-best_idx = np.argmax(log_densities)
-best_sample = samples[best_idx]
-print(f"  Coordinates (unit cube): {best_sample}")
-fig.savefig(os.path.join(savepath, "corner_plot_deviation.png"))
-np.savetxt(os.path.join(savepath, "samples_deviation.txt"), samples)

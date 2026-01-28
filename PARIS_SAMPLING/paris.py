@@ -205,7 +205,7 @@ superkludge_wave = GenerateEMRIWaveform(SuperKludgeWaveform,\
                                     use_gpu=use_gpu)
 print(add_args)
 
-waveform_true = np.array(superkludge_wave(m1, m2, a, p0, e0, xI0, dist,
+waveform_true = xp.array(superkludge_wave(m1, m2, a, p0, e0, xI0, dist,
                                            qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0, *add_args, dt=dt, T=T))
 PSD=generate_PSD(waveform_true,dt,use_gpu=use_gpu,
                 noise_PSD=get_sensitivity,
@@ -298,10 +298,10 @@ def inverse_prior_transform(x):
     return u
 
 
-savepath = '/deviation_results_PARIS/'
+#savepath = '/deviation_results_PARIS/'
 
 # Create save directory
-os.makedirs(savepath, exist_ok=True)
+#os.makedirs(savepath, exist_ok=True)
 
 
 config = SamplerConfig(
@@ -320,7 +320,7 @@ config = SamplerConfig(
 ndim = 11
 n_seed = 100  # Number of initial processes
 init_cov_list = [np.eye(ndim) * 1e-10] * n_seed
-savepath = 'paris_manin_t_1_near_separtrix_1'  # Directory to save results
+savepath = '/home/svu/e1583490/scratch/paris_manin_t_1_near_separtrix_1'  # Directory to save results
 
 # Create save directory
 os.makedirs(savepath, exist_ok=True)

@@ -205,7 +205,7 @@ superkludge_wave = GenerateEMRIWaveform(SuperKludgeWaveform,\
                                     use_gpu=use_gpu)
 print(add_args)
 
-waveform_true = np.array(superkludge_wave(m1, m2, a, p0, e0, xI0, dist,
+waveform_true = xp.array(superkludge_wave(m1, m2, a, p0, e0, xI0, dist,
                                            qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0, *add_args, dt=dt, T=T))
 PSD=generate_PSD(waveform_true,dt,use_gpu=use_gpu,
                 noise_PSD=get_sensitivity,

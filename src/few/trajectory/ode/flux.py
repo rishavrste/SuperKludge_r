@@ -637,10 +637,6 @@ class SuperKludgeFlux(KerrEccEqFlux):
         evolve_1PA (bool) : whether to include 1PA corrections.
         evolve_primary (bool) : whether to evolve MBH mass M and spin a/chi1.
         evolve_2PA (bool) : whether to include 2PA corrections.
-        deviation_included (bool) : whether to include 2PA corrections.
-        del_0: Deviation Vector 0th Order
-        del_1: Deviation Vector 1th Order
-        del_2 Deviation Vector 1th Order
     """
 
 
@@ -683,25 +679,25 @@ class SuperKludgeFlux(KerrEccEqFlux):
                 self.A_p=additional_args[5]
       
             except:
-                print("deviation 0_P not defined. Default to Zero")
+                print("deviation A_p not defined. Default to Zero")
                 self.A_p=0
 
             try:
                 self.B_p=additional_args[6]
             except:
-                print("deviation 0_e not defined. Default to Zero")
+                print("deviation B_p not defined. Default to Zero")
                 self.B_p=0.0
                 
             try:
                 self.A_e=additional_args[7]
             except:
-                print("deviation 1_p not defined. Default to Zero")
+                print("deviation A_e not defined. Default to Zero")
                 self.A_e=0.0
 
             try:
                 self.B_e=additional_args[8]
             except:
-                print("deviation 1_e not defined. Default to Zero")
+                print("deviation B_e not defined. Default to Zero")
                 self.B_e=0.0
             
         else:
@@ -801,9 +797,8 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
             #PN corrections
            # print(p,e)
-            pdot +=self.massratio * ((self.A_p + self.B_p * e **2 )/p ** 5.5)
-
-            edot +=self.massratio * ((self.A_e + self.B_e * e **2 )/p ** 6.5)
+            pdot +=self.massratio * ((1-e**2)**1.5) * ((self.A_p + self.B_p * e **2 )/p ** 3.5)
+            edot +=self.massratio * e* ((1-e**2)**1.5) * ((self.A_e + self.B_e * e **2 )/p ** 4.5)
         
         if self.evolve_1PA:
 

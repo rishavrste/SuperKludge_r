@@ -1,0 +1,4 @@
+overlap between best fit point and true waveform: 0.9999999055153056
+mismatch between best fit point and true waveform: 9.44846944017641e-08
+overlap between approximate waveform and true waveform (both at true points) 0.7101551567036656
+mismatch between approximate waveform and true waveform (both at true points): 0.2898448432963344

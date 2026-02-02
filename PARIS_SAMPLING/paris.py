@@ -1,4 +1,3 @@
-
 import numpy as np
 import cupy as cp
 import matplotlib.pyplot as plt
@@ -8,7 +7,6 @@ import os
 import h5py
 from tqdm import tqdm
 import pandas as pd
-import corner
 
 #few utils
 from few.utils.utility import get_p_at_t
@@ -126,6 +124,40 @@ emri_kwargs = {"T":T, "dt":dt}
 
 param_names_com = ['m1','m2','a','p0','e0','xI0','dist','qS','phiS','qK','phiK','Phi_phi0','Phi_theta0','Phi_r0',"chi2",
                "evolve_1PA","evolve_primary","evolve_2PA","deviation_included","dev0p","dev0e","dev1p","dev1e","dev2p","dev2e"]
+
+from few.utils.utility import ( 
+    get_mismatch, 
+    get_m2_at_t, 
+    get_p_at_t, 
+    )
+
+from few.utils.geodesic import (
+    get_fundamental_frequencies,
+    get_separatrix,
+    get_kerr_geo_constants_of_motion,
+    ELQ_to_pex,
+    )
+SK_traj = EMRIInspiral(func=SuperKludgeFlux)
+#get_p_at_t may fail with SuperKludge, especially with lower eccentricities, so we use KerrEccEq to generate p0 
+add_args = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,dev_0_p,dev_0_e,dev_1_p,dev_1_e,dev_2_p,dev_2_e]
+p_sep = get_separatrix(a, e0, xI0)
+p0_should = get_p_at_t(traj_module=SK_traj, t_out=1.0, traj_args=[m1, m2, a, e0, xI0, *add_args])
+print('should take p0 around for for true waveform: ', p0_should)
+print('separatrix p: ', p_sep)
+
+from scipy.interpolate import CubicSpline
+add_args = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,dev_0_p,dev_0_e,dev_1_p,dev_1_e,dev_2_p,dev_2_e]
+print(add_args) 
+t_evol, p_evol, e_evol, x2_evol, pp2_evol, pt2_evol, pr2_evol, _, _ = SK_traj(m1, m2, a, p0, e0, xI0, *add_args,
+                                               Phi_phi0=Phi_phi0, Phi_theta0=Phi_theta0, Phi_r0=Phi_r0, T=T, dt=dt)
+p_evolution = CubicSpline(t_evol, p_evol)(t_evol)
+plt.plot(t_evol, p_evolution)
+plt.title('p evolution for true waveform considering 1PA and start at p0=7.5')
+plt.xlabel('time (s)')
+plt.ylabel('p')
+plt.axhline(p_sep, color='red', linestyle='--', label='Separatrix p')
+plt.legend()
+plt.show()
 der_order = 8
 Ndelta=10
 sef = StableEMRIFisher(waveform_class=waveform_class, 
@@ -180,16 +212,17 @@ param_dict = {
 Fisher = sef(wave_params = param_dict,param_names=param_names, add_param_args=add_param_args,
             live_dangerously = False, stability_plot = True,der_order = der_order, Ndelta = Ndelta,
             )
+
 def logmasstransform(Fisher, m1, index_of_m1 = 0):    
     J = np.eye(len(Fisher))
     J[index_of_m1,index_of_m1] = m1
     
     return J.T@Fisher@J
-
 fisher_=logmasstransform(Fisher, m1, index_of_m1 = 0)
 cov=np.linalg.inv(fisher_)
 std= np.sqrt(np.diag(cov))
 params_truth_in = np.array([np.log(m1), m2, a, p0, e0, qS, phiS, Phi_phi0,Phi_r0,dev_0_p,dev_0_e])
+
 chi2=0
 deviation_included=True
 evolve_1PA=True
@@ -205,12 +238,12 @@ superkludge_wave = GenerateEMRIWaveform(SuperKludgeWaveform,\
                                     use_gpu=use_gpu)
 print(add_args)
 
-waveform_true = xp.array(superkludge_wave(m1, m2, a, p0, e0, xI0, dist,
-                                           qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0, *add_args, dt=dt, T=T))
+waveform_true = superkludge_wave(m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0, *add_args, dt=dt, T=T)
 PSD=generate_PSD(waveform_true,dt,use_gpu=use_gpu,
                 noise_PSD=get_sensitivity,
                 noise_kwargs={'sens_fn':CornishLISASens,'return_type':'PSD'},
                 channels=["A","E"])
+waveform_true=xp.array(waveform_true)
 
 chi2=0
 deviation_included=True
@@ -226,7 +259,8 @@ def loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e
 
     diff_inner=inner_product(waveform_true-waveform_temp,waveform_true-waveform_temp,PSD,dt,use_gpu=use_gpu)
     #print(diff_inner)
-    return -0.5 * diff_inner
+    return -0.5 * diff_inner * 0.4
+
 
 def log_density(params):
     params = np.asarray(params)
@@ -234,13 +268,13 @@ def log_density(params):
     log_likes = np.zeros(n_samples)
     for i in range(n_samples):
         logm1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e_ = params[i]
-        m1_ = 10**logm1_
+        m1_ = np.exp(logm1_)
 
         loglike = loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e_)
         log_likes[i] = loglike 
     return log_likes
 
-n=3
+n=8
 
 logm1lim = [max(0,params_truth_in[0] - n*std[0]), params_truth_in[0] + n*std[0]]
 m2lim = [max(0,params_truth_in[1] - n*std[1]), params_truth_in[1] + n*std[1]]
@@ -298,15 +332,20 @@ def inverse_prior_transform(x):
     return u
 
 
+<<<<<<< HEAD
 #savepath = '/deviation_results_PARIS/'
 
 # Create save directory
 #os.makedirs(savepath, exist_ok=True)
 
 
+=======
+# def main():
+    
+>>>>>>> f2bd881f24a959ce537d48714b53d8ce9968b6aa
 config = SamplerConfig(
     merge_confidence=0.9,          # Coverage prob → Mahalanobis merge radius R_m (higher is more permissive)
-    alpha=5000,                    # Use recent samples for weighting
+    alpha=10000,                    # Use recent samples for weighting
     trail_size=int(1e3),          # Maximum trials per iteration
     boundary_limiting=True,        # Enable boundary constraints
     use_beta=True,                # Use beta correction for boundaries
@@ -314,13 +353,18 @@ config = SamplerConfig(
     gamma=500,                    # Covariance update frequency
     exclude_scale_z=10,       # No exclusion based on weights
     use_pool=False,               # Set to True for multiprocessing
-                # Number of processes (if use_pool=True)
+    # n_pool=4                     # Number of processes (if use_pool=True)
 )
 
 ndim = 11
-n_seed = 100  # Number of initial processes
+n_seed = int(1e4)  # Number of initial processes
+# n_seed = 10  # Number of initial processes
 init_cov_list = [np.eye(ndim) * 1e-10] * n_seed
+<<<<<<< HEAD
 savepath = '/home/svu/e1583490/scratch/paris_manin_t_1_near_separtrix_1'  # Directory to save results
+=======
+savepath = 'paris_manin_t_1_1e4'  # Directory to save results
+>>>>>>> f2bd881f24a959ce537d48714b53d8ce9968b6aa
 
 # Create save directory
 os.makedirs(savepath, exist_ok=True)
@@ -330,7 +374,6 @@ print(f"Number of processes: {n_seed}")
 print(f"Save path: {savepath}")
 print(f"Multiprocessing: {config.use_pool}")
 # Initialize sampler
-
 print("\nInitializing sampler...")
 sampler = Sampler(
     ndim=ndim, 
@@ -352,12 +395,15 @@ print("Preparing LHS samples...")
 # external_lhs_points = np.vstack([external_lhs_points, [0.5]*11])
 
 #best value got so far
-true_point = np.array([0.49950774, 0.50029861, 0.50023106, 0.50000561, 0.50011007,
-        0.49972869, 0.49976471, 0.50000581, 0.5001126 , 0.499542  ,
-        0.50084363])
+true_point = np.array([[0.5 , 0.50  ,0.5 ,0.5, 0.5 ,0.5,
+ 0.5, 0.5, 0.5 ,0.5,  0.5]])
 
-scatter = 1.0e-7
-points = true_point + np.random.randn(99, 11) * scatter
+
+
+rng = np.random.default_rng(42)
+scatter = 1.0e-6
+points = true_point + rng.normal(size=(n_seed-1, 11)) * scatter
+
 # Add the original point as the 100th row
 external_lhs_points = np.vstack([points, true_point])
 print("Shape of points array:", external_lhs_points.shape)
@@ -370,7 +416,7 @@ print("external_lhs_log_densities", external_lhs_log_densities)
 # external_lhs_log_densities = np.concatenate(external_lhs_log_densities)
 
 sampler.run_sampling(
-            num_iterations=int(1e5),
+            num_iterations=int(1e4),
             savepath=savepath,
             print_iter=100,
             external_lhs_points=external_lhs_points,
@@ -399,3 +445,4 @@ print(f"Mean deviation: {np.linalg.norm(weighted_mean - params_truth_in):.6f}")
 
 print(f"\nTrue covariance diagonal: {np.diag(cov)}")
 print(f"Estimated covariance diagonal: {np.diag(weighted_cov)}")
+

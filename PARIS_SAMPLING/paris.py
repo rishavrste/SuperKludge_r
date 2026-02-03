@@ -259,7 +259,7 @@ def loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e
 
     diff_inner=inner_product(waveform_true-waveform_temp,waveform_true-waveform_temp,PSD,dt,use_gpu=use_gpu)
     #print(diff_inner)
-    return -0.5 * diff_inner * 0.4
+    return -0.5 * diff_inner * 20
 
 
 def log_density(params):
@@ -395,13 +395,14 @@ print("Preparing LHS samples...")
 # external_lhs_points = np.vstack([external_lhs_points, [0.5]*11])
 
 #best value got so far
-true_point = np.array([[0.5 , 0.50  ,0.5 ,0.5, 0.5 ,0.5,
- 0.5, 0.5, 0.5 ,0.5,  0.5]])
+true_point = np.array([[0.54074757, 0.50533039, 0.55978859, 0.45020407, 0.47241674,
+        0.44996388, 0.57726048, 0.58059364, 0.49154749, 0.4953775 ,
+        0.4951279 ]])
 
 
 
 rng = np.random.default_rng(42)
-scatter = 1.0e-6
+scatter = 1.0e-7
 points = true_point + rng.normal(size=(n_seed-1, 11)) * scatter
 
 # Add the original point as the 100th row
@@ -416,7 +417,7 @@ print("external_lhs_log_densities", external_lhs_log_densities)
 # external_lhs_log_densities = np.concatenate(external_lhs_log_densities)
 
 sampler.run_sampling(
-            num_iterations=int(1e4),
+            num_iterations=int(1e5),
             savepath=savepath,
             print_iter=100,
             external_lhs_points=external_lhs_points,

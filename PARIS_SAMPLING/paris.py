@@ -332,17 +332,12 @@ def inverse_prior_transform(x):
     return u
 
 
-<<<<<<< HEAD
-#savepath = '/deviation_results_PARIS/'
-
 # Create save directory
 #os.makedirs(savepath, exist_ok=True)
 
 
-=======
 # def main():
     
->>>>>>> f2bd881f24a959ce537d48714b53d8ce9968b6aa
 config = SamplerConfig(
     merge_confidence=0.9,          # Coverage prob → Mahalanobis merge radius R_m (higher is more permissive)
     alpha=10000,                    # Use recent samples for weighting
@@ -360,11 +355,7 @@ ndim = 11
 n_seed = int(1e4)  # Number of initial processes
 # n_seed = 10  # Number of initial processes
 init_cov_list = [np.eye(ndim) * 1e-10] * n_seed
-<<<<<<< HEAD
-savepath = '/home/svu/e1583490/scratch/paris_manin_t_1_near_separtrix_1'  # Directory to save results
-=======
 savepath = 'paris_manin_t_1_1e4'  # Directory to save results
->>>>>>> f2bd881f24a959ce537d48714b53d8ce9968b6aa
 
 # Create save directory
 os.makedirs(savepath, exist_ok=True)

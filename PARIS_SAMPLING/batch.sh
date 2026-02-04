@@ -2,7 +2,7 @@
 #PBS -P personal-e1583490
 #PBS -k oe
 #PBS -N paris
-#PBS -l walltime=8:00:00
+#PBS -l walltime=20:00:00
 #PBS -l select=1:ncpus=36:mpiprocs=1:ompthreads=36:ngpus=1
 
 set -euo pipefail

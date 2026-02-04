@@ -266,10 +266,9 @@ def log_density(params):
     n_samples = params.shape[0] 
     log_likes = np.zeros(n_samples)
     for i in range(n_samples):
-        logm1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e_ = params[i]
+        logm1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_ = params[i]
         m1_ = np.exp(logm1_)
-
-        loglike = loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e_)
+        loglike = loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_)
         log_likes[i] = loglike 
     return log_likes
 

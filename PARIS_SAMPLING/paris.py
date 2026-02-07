@@ -79,24 +79,35 @@ if(use_gpu):
 else:
     xp=np
 
+# [ 1.00000000e+06,  1.00000000e+04,  9.00000000e-01,
+#          2.85813146e+01,  5.00000000e-01,  1.00000000e+00,
+#          3.31765439e+01,  1.04719755e+00,  7.85398163e-01,
+#          6.28318531e-01,  5.23598776e-01,  1.00000000e-01,
+#          2.00000000e-01,  3.00000000e-01,  1.00000000e+01,
+#          2.50000000e-01,  9.50000000e-01]
+
 m1 = 1e6
-m2 = 10
-a = 0.8 # 0.95
-e0 = 0.4 # 0.6 just spin first
+m2 = 1e4
+a = -0.9 # 0.95
+# p0 = 2.85813146e+01
+p0 = 42.0
+e0 = 5.00000000e-01
 xI0 = 1.0
-dist = 0.4
-qS = xp.pi/4
-phiS = 1.0
-qK = 1 
-phiK = xp.pi/3
-Phi_phi0 = 0.9
-Phi_theta0 =0.5
-Phi_r0 = 0.4
+# dist = 3.31765439e+01
+dist = 5.0
+qS = 1.04719755e+00
+phiS = 7.85398163e-01
+qK = 6.28318531e-01
+
+phiK = 5.23598776e-01
+Phi_phi0 = 0.1
+Phi_theta0 =0.2
+Phi_r0 = 0.3
 
 dt = 10.0
 T = 1.0
 
-chi2 = 0.0
+chi2 = 9.50000000e-01
 
 dev_0_p=0.0
 dev_0_e=0.0
@@ -108,7 +119,7 @@ evolve_1PA = False
 evolve_primary = False
 evolve_2PA = False
 deviation_included=True
-p0=7.5
+
 
 print(use_gpu)
 pars_list_com = [m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0,\
@@ -223,7 +234,6 @@ cov=np.linalg.inv(fisher_)
 std= np.sqrt(np.diag(cov))
 params_truth_in = np.array([np.log(m1), m2, a, p0, e0, qS, phiS, Phi_phi0,Phi_r0,dev_0_p,dev_0_e])
 
-chi2=0
 deviation_included=True
 evolve_1PA=True
 evolve_primary=False
@@ -245,7 +255,6 @@ PSD=generate_PSD(waveform_true,dt,use_gpu=use_gpu,
                 channels=["A","E"])
 waveform_true=xp.array(waveform_true)
 
-chi2=0
 deviation_included=True
 evolve_1PA=False
 evolve_primary=False
@@ -259,7 +268,7 @@ def loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e
 
     diff_inner=inner_product(waveform_true-waveform_temp,waveform_true-waveform_temp,PSD,dt,use_gpu=use_gpu)
     #print(diff_inner)
-    return -0.5 * diff_inner * 20
+    return -0.5 * diff_inner 
 
 
 def log_density(params):
@@ -274,7 +283,7 @@ def log_density(params):
         log_likes[i] = loglike 
     return log_likes
 
-n=8
+n=20
 
 logm1lim = [max(0,params_truth_in[0] - n*std[0]), params_truth_in[0] + n*std[0]]
 m2lim = [max(0,params_truth_in[1] - n*std[1]), params_truth_in[1] + n*std[1]]
@@ -386,9 +395,7 @@ print("Preparing LHS samples...")
 # external_lhs_points = np.vstack([external_lhs_points, [0.5]*11])
 
 #best value got so far
-true_point = np.array([[0.54074757, 0.50533039, 0.55978859, 0.45020407, 0.47241674,
-        0.44996388, 0.57726048, 0.58059364, 0.49154749, 0.4953775 ,
-        0.4951279 ]])
+true_point = np.array([[0.5, 0.50, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,0.5]])
 
 
 

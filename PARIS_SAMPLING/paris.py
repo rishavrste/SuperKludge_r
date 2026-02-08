@@ -268,7 +268,7 @@ def loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e
 
     diff_inner=inner_product(waveform_true-waveform_temp,waveform_true-waveform_temp,PSD,dt,use_gpu=use_gpu)
     #print(diff_inner)
-    return -0.5 * diff_inner 
+    return -0.5 * diff_inner * 0.4
 
 
 def log_density(params):

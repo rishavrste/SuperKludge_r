@@ -676,35 +676,26 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
         if(self.deviation_included):
             try:
-                self.A_p=additional_args[5]
+                self.C_p=additional_args[5]
       
             except:
-                print("deviation A_p not defined. Default to Zero")
-                self.A_p=0
+                print("deviation C_p not defined. Default to Zero")
+                self.C_p=0
 
             try:
-                self.B_p=additional_args[6]
+                self.C_e=additional_args[6]
             except:
-                print("deviation B_p not defined. Default to Zero")
-                self.B_p=0.0
+                print("deviation C_e not defined. Default to Zero")
+                self.C_e=0.0
                 
-            try:
-                self.A_e=additional_args[7]
-            except:
-                print("deviation A_e not defined. Default to Zero")
-                self.A_e=0.0
-
-            try:
-                self.B_e=additional_args[8]
-            except:
-                print("deviation B_e not defined. Default to Zero")
-                self.B_e=0.0
             
         else:
-                self.A_p=0
-                self.B_p=0
-                self.A_e=0
-                self.B_e=0
+                # self.A_p=0
+                # self.B_p=0
+                # self.A_e=0
+                # self.B_e=0
+                self.C_p = 0
+                self.C_e = 0
 
         #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included,self.B_p,self.chi2)
         
@@ -797,8 +788,8 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
             #PN corrections
            # print(p,e)
-            pdot +=self.massratio * ((1-e**2)**1.5) * ((self.A_p + self.B_p * e **2 )/p ** 3.5)
-            edot +=self.massratio * e* ((1-e**2)**1.5) * ((self.A_e + self.B_e * e **2 )/p ** 4.5)
+            pdot +=self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5)
+            edot +=self.massratio * e* self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5)
         
         if self.evolve_1PA:
 

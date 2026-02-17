@@ -81,8 +81,6 @@ waveform_class_kwargs = dict(inspiral_kwargs=inspiral_kwargs,
 waveform_generator = GenerateEMRIWaveform
 waveform_generator_kwargs = dict(return_list=False)
 
-     
-
 m1 = 1e6
 m2 = 1e1
 a = 0.8
@@ -157,7 +155,7 @@ add_param_args={"chi2":chi2,"evolve_1PA":evolve_1PA,"evolve_primary":evolve_prim
 "devCe":dev_C_e}
 
 
-param_names = ['m1','m2','a','p0','e0','qS','phiS','Phi_phi0','Phi_r0','devCp','devCe']
+param_names = ['m1','m2','a','p0','e0','qS','phiS','Phi_phi0','Phi_r0']
 pars_list = [m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0]
 
 param_dict = {
@@ -180,6 +178,7 @@ param_dict = {
 Fisher = sef(wave_params = param_dict,param_names=param_names, add_param_args=add_param_args,
             live_dangerously = False, stability_plot = True,der_order = der_order, Ndelta = Ndelta,
             )
+
 def logmasstransform(Fisher, m1, index_of_m1 = 0):    
     J = np.eye(len(Fisher))
     J[index_of_m1,index_of_m1] = m1
@@ -188,8 +187,9 @@ def logmasstransform(Fisher, m1, index_of_m1 = 0):
 fisher_=logmasstransform(Fisher, m1, index_of_m1 = 0)
 cov=np.linalg.inv(fisher_)
 std= np.sqrt(np.diag(cov))
-params_truth_in = np.array([np.log(m1), m2, a, p0, e0, qS, phiS, Phi_phi0,Phi_r0,dev_C_p,dev_C_e])
+params_truth_in = np.array([np.log(m1), m2, a, p0, e0, qS, phiS, Phi_phi0,Phi_r0])
      
+
 
 chi2=0.9
 deviation_included=True
@@ -217,10 +217,10 @@ deviation_included=True
 evolve_1PA=False
 evolve_primary=False
 evolve_2PA=False
-add_args = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,dev_C_p,dev_C_e]
+add_args = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included]
 
-def loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev_Cp_,dev_Ce_):
-    add_args__ = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,dev_Cp_,dev_Ce_]
+def loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_):
+    add_args__ = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,dev_C_p,dev_C_e]
     waveform_temp=xp.array(superkludge_wave(m1_, m2_, a_, p0_, e0_, xI0, dist, qS_, phiS_, qK, phiK, Phi_phi0_, Phi_theta0, Phi_r0_, *add_args__, dt=dt, T=T,use_gpu=use_gpu))
 
     diff_inner=inner_product(waveform_true-waveform_temp,waveform_true-waveform_temp,PSD,dt,use_gpu=use_gpu)
@@ -232,10 +232,10 @@ def log_density(params):
     n_samples = params.shape[0] 
     log_likes = np.zeros(n_samples)
     for i in range(n_samples):
-        logm1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,devCp_,devCe_ = params[i]
+        logm1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_ = params[i]
         m1_ = np.exp(logm1_)
 
-        loglike = loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,devCp_,devCe_)
+        loglike = loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_)
         log_likes[i] = loglike 
     return log_likes
 
@@ -250,8 +250,7 @@ qSlim = [params_truth_in[5] - n*std[5], params_truth_in[5] + n*std[5]]
 phiSlim = [params_truth_in[6] - n*std[6], params_truth_in[6] + n*std[6]]
 Phi_phi0lim = [params_truth_in[7] - n*std[7], params_truth_in[7] + n*std[7]]
 Phi_r0lim = [params_truth_in[8] - n*std[8], params_truth_in[8] + n*std[8]]
-devCplim = [params_truth_in[9] - n*std[9], params_truth_in[9] + n*std[9]]
-devCelim = [params_truth_in[10] - n*std[10], params_truth_in[10] + n*std[10]]
+
 
 def prior_transform(u):
 
@@ -272,8 +271,7 @@ def prior_transform(u):
     transformed[:, 6] = (phiSlim[1] - phiSlim[0]) * u[:, 6] + phiSlim[0]
     transformed[:, 7] = (Phi_phi0lim[1] - Phi_phi0lim[0]) * u[:, 7] + Phi_phi0lim[0]
     transformed[:, 8] = (Phi_r0lim[1] - Phi_r0lim[0]) * u[:, 8] + Phi_r0lim[0]
-    transformed[:, 9] = (devCplim[1] - devCplim[0]) * u[:, 9] + devCplim[0]
-    transformed[:, 10] = (devCelim[1] - devCelim[0]) * u[:, 10] + devCelim[0]
+
 
     return transformed
 
@@ -291,8 +289,7 @@ def inverse_prior_transform(x):
     u[:, 6] = (x[:, 6] - phiSlim[0]) / (phiSlim[1] - phiSlim[0])
     u[:, 7] = (x[:, 7] - Phi_phi0lim[0]) / (Phi_phi0lim[1] - Phi_phi0lim[0])
     u[:, 8] = (x[:, 8] - Phi_r0lim[0]) / (Phi_r0lim[1] - Phi_r0lim[0])
-    u[:, 9] = (x[:, 9] - devCplim[0]) / (devCplim[1] - devCplim[0])
-    u[:, 10] = (x[:, 10] - devCelim[0]) / (devCelim[1] - devCelim[0])
+
     
     return u     
 
@@ -309,11 +306,11 @@ config = SamplerConfig(
     # n_pool=4                     # Number of processes (if use_pool=True)
 )
 
-ndim = 11
+ndim = 9
 n_seed = int(1e4)  # Number of initial processes
 # n_seed = 10  # Number of initial processes
 init_cov_list = [np.eye(ndim) * 1e-10] * n_seed
-savepath = 'paris_manin_t_1_1e4'  # Directory to save results
+savepath = 'paris_manin_t_1_1e4_1PA_0PA'  # Directory to save results
 
 # Create save directory
 os.makedirs(savepath, exist_ok=True)
@@ -337,11 +334,11 @@ print("Preparing LHS samples...")
 
 #best value got so far
 true_point = np.array([[0.5 , 0.50  ,0.5 ,0.5, 0.5 ,0.5,
- 0.5, 0.5, 0.5 ,0.5,  0.5]])
+ 0.5, 0.5, 0.5]])
 
 rng = np.random.default_rng(42)
 scatter = 1.0e-6
-points = true_point + rng.normal(size=(n_seed-1, 11)) * scatter
+points = true_point + rng.normal(size=(n_seed-1, 9)) * scatter
 
 # Add the original point as the 100th row
 external_lhs_points = np.vstack([points, true_point])
@@ -382,4 +379,3 @@ print(f"Mean deviation: {np.linalg.norm(weighted_mean - params_truth_in):.6f}")
 
 print(f"\nTrue covariance diagonal: {np.diag(cov)}")
 print(f"Estimated covariance diagonal: {np.diag(weighted_cov)}")
-

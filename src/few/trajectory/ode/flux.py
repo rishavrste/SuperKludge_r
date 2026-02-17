@@ -788,6 +788,7 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
             #PN corrections
            # print(p,e)
+            print("Adding deviation with C_p: ", self.C_p, "C_e: ", self.C_e)
             pdot +=self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5)
             edot +=self.massratio * e* self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5)
         

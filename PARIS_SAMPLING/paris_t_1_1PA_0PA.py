@@ -337,7 +337,7 @@ true_point = np.array([[0.49524617, 0.52039521, 0.51405104, 0.49942847, 0.500236
         0.48892819, 0.49964573, 0.52215359, 0.45552197]])
 
 rng = np.random.default_rng(42)
-scatter = 1.0e-7
+scatter = 5.0e-8
 points = true_point + rng.normal(size=(n_seed-1, 9)) * scatter
 
 # Add the original point as the 100th row
@@ -352,7 +352,7 @@ print("external_lhs_log_densities", external_lhs_log_densities)
 # external_lhs_log_densities = np.concatenate(external_lhs_log_densities)
 
 sampler.run_sampling(
-            num_iterations=int(1e5),
+            num_iterations=int(5e4),
             savepath=savepath,
             print_iter=100,
             external_lhs_points=external_lhs_points,

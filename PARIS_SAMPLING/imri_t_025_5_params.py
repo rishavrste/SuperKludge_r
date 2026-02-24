@@ -241,9 +241,9 @@ def log_density(params):
         m1_ = np.exp(logm1_)
         loglike = loglike_calc(m1_, m2_, a_, p0_, e0_)
         log_likes[i] = loglike 
-    return log_likes
+    return log_likes*15000
 
-n=30
+n=100
 logm1lim = [max(0,params_truth_in[0] - n*std[0]), params_truth_in[0] + n*std[0]]
 m2lim = [max(0,params_truth_in[1] - n*std[1]), params_truth_in[1] + n*std[1]]
 alim = [max(-0.999,params_truth_in[2] - n*std[2]), min(params_truth_in[2] + n*std[2], 0.999)]  # a must be <1
@@ -304,7 +304,7 @@ config = SamplerConfig(
 )
 
 ndim = 5
-n_seed = int(1e4)  # Number of initial processes
+n_seed = int(5e4)  # Number of initial processes
 init_cov_list = [np.eye(ndim) * 1e-10] * n_seed
 savepath = 'paris_1PA_vs_0PA_5_params'  # Directory to save results
 
@@ -329,9 +329,8 @@ sampler = Sampler(
 print("Preparing LHS samples...")
 
 #best value got so far
-true_point = np.array([0.5, 0.5, 0.5, 0.5, 0.5])
+true_point = np.array([0.52736159, 0.48183718, 0.76335759, 0.47859837, 0.40420834])
     # Generate 99 points around it with tiny Gaussian noise ~1e-10
-scatter = 1.0e-7
 rng = np.random.default_rng(42)
 scatter = 1.0e-6
 points = true_point + rng.normal(size=(n_seed-1, 5)) * scatter
@@ -343,12 +342,12 @@ print("external_lhs_log_densities", external_lhs_log_densities)
 
 
 sampler.run_sampling(
-            num_iterations=int(5e4),
+            num_iterations=int(1e5),
             savepath=savepath,
             print_iter=100,
             external_lhs_points=external_lhs_points,
             external_lhs_log_densities=external_lhs_log_densities,
-            stop_dlogZ=0.01
+            stop_dlogZ=0.005
         )
 #except Exception as exc:
  #       print(f"[WARN] PARIS sampling failed: {exc}")

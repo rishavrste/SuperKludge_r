@@ -328,22 +328,28 @@ sampler = Sampler(
    # Prepare initial samples using Latin Hypercube Sampling
 print("Preparing LHS samples...")
 
-#best value got so far
-sampler.prepare_lhs_samples(lhs_num=int(1e5), batch_size=100)
+print("Preparing LHS samples...")
 
-# print("Shape of points array:", external_lhs_points.shape)
-# external_lhs_log_densities = log_density(prior_transform(external_lhs_points))
-# print("true points in corrrect space",params_truth_in)
-# print("external_lhs_log_densities", external_lhs_log_densities)
+#best value got so far
+true_point = np.array([0.5, 0.5, 0.5, 0.5 , 0.5])
+
+rng = np.random.default_rng(42)
+scatter = 1.0e-8
+points = true_point + rng.normal(size=(n_seed-1, 5)) * scatter
+external_lhs_points = np.vstack([points, true_point])
+print("Shape of points array:", external_lhs_points.shape)
+external_lhs_log_densities = log_density(prior_transform(external_lhs_points))
+print("true points in corrrect space",params_truth_in)
+print("external_lhs_log_densities", external_lhs_log_densities)
 
 
 sampler.run_sampling(
             num_iterations=int(1e5),
             savepath=savepath,
             print_iter=100,
-        #    external_lhs_points=external_lhs_points,
-       #     external_lhs_log_densities=external_lhs_log_densities,
-            stop_dlogZ=0.01
+            external_lhs_points=external_lhs_points,
+            external_lhs_log_densities=external_lhs_log_densities,
+            stop_dlogZ=0.005
         )
 #except Exception as exc:
  #       print(f"[WARN] PARIS sampling failed: {exc}")

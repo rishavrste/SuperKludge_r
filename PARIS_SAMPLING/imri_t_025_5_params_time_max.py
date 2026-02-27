@@ -231,6 +231,27 @@ def loglike_calc(m1_, m2_, a_, p0_, e0_):
     diff_inner=inner_product(waveform_true-waveform_temp,waveform_true-waveform_temp,PSD,dt,use_gpu=use_gpu)
     return -0.5 * diff_inner
 
+def timemax_correlation(h1, h2):
+
+    # FFT with dt scaling
+    H1 = xp.array([xp.fft.rfft(h1[k]) * dt for k in range(2)])
+    H2 = xp.array([xp.fft.rfft(h2[k]) * dt for k in range(2)])
+    # print("H1 shape: ", H1.shape
+    #       ,"H2 shape: ", H2.shape)
+    # print("PSD shape: ", PSD.shape)
+
+    Y = xp.zeros_like(H1)
+    for i in range(2):
+        Y[i,1:] = H1[i,1:] * xp.conj(H2[i,1:]) / (0.5 * PSD[i])  # Avoid DC component
+    # IFFT to time domain with proper normalization
+    S =xp.array([xp.fft.irfft(Y[i]) / dt for i in range(2)])
+    # Return maximum correlation
+    return  xp.max(xp.abs(S))
+
+def loglike_calc_time_max(m1_, m2_, a_, p0_, e0_):
+    waveform_temp=xp.array(superkludge_wave(m1_, m2_, a_, p0_, e0_, xI0, dist, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0, *add_args, dt=dt, T=T,use_gpu=use_gpu))
+    max_corr = timemax_correlation(waveform_true, waveform_temp)
+    return max_corr
 
 def log_density(params):
     params = np.asarray(params)
@@ -239,18 +260,16 @@ def log_density(params):
     for i in range(n_samples):
         logm1_, m2_, a_, p0_, e0_ = params[i]
         m1_ = np.exp(logm1_)
-        loglike = loglike_calc(m1_, m2_, a_, p0_, e0_)
+        loglike = loglike_calc_time_max(m1_, m2_, a_, p0_, e0_)
         log_likes[i] = loglike 
-    return log_likes*15000
+    return log_likes
 
-n=100
+n=300
 logm1lim = [max(0,params_truth_in[0] - n*std[0]), params_truth_in[0] + n*std[0]]
 m2lim = [max(0,params_truth_in[1] - n*std[1]), params_truth_in[1] + n*std[1]]
 alim = [max(-0.999,params_truth_in[2] - n*std[2]), min(params_truth_in[2] + n*std[2], 0.999)]  # a must be <1
 p0lim = [max(0,params_truth_in[3] - n*std[3]), params_truth_in[3] + n*std[3]]
 e0lim = [max(0,params_truth_in[4] - n*std[4]), min(1,params_truth_in[4] + n*std[4])]
-
-
 
 def prior_transform(u):
 
@@ -262,7 +281,6 @@ def prior_transform(u):
     transformed[:, 2] = (alim[1] - alim[0]) * u[:, 2] + alim[0]
     transformed[:, 3] = (p0lim[1] - p0lim[0]) * u[:, 3] + p0lim[0] 
     transformed[:, 4] = (e0lim[1] - e0lim[0]) * u[:, 4] + e0lim[0]
-
 
     return transformed
     
@@ -306,7 +324,7 @@ config = SamplerConfig(
 ndim = 5
 n_seed = int(5e4)  # Number of initial processes
 init_cov_list = [np.eye(ndim) * 1e-10] * n_seed
-savepath = 'paris_1PA_vs_0PA_5_params'  # Directory to save results
+savepath = 'paris_1PA_vs_0PA_5_time_max'  # Directory to save results
 
 # Create save directory
 os.makedirs(savepath, exist_ok=True)
@@ -329,21 +347,25 @@ sampler = Sampler(
 print("Preparing LHS samples...")
 
 #best value got so far
-sampler.prepare_lhs_samples(lhs_num=int(1e5), batch_size=100)
+true_point = np.array([0.5, 0.5, 0.5, 0.5 , 0.5])
 
-# print("Shape of points array:", external_lhs_points.shape)
-# external_lhs_log_densities = log_density(prior_transform(external_lhs_points))
-# print("true points in corrrect space",params_truth_in)
-# print("external_lhs_log_densities", external_lhs_log_densities)
+rng = np.random.default_rng(42)
+scatter = 1.0e-7
+points = true_point + rng.normal(size=(n_seed-1, 5)) * scatter
+external_lhs_points = np.vstack([points, true_point])
+print("Shape of points array:", external_lhs_points.shape)
+external_lhs_log_densities = log_density(prior_transform(external_lhs_points))
+print("true points in corrrect space",params_truth_in)
+print("external_lhs_log_densities", external_lhs_log_densities)
 
 
 sampler.run_sampling(
             num_iterations=int(1e5),
             savepath=savepath,
             print_iter=100,
-        #    external_lhs_points=external_lhs_points,
-       #     external_lhs_log_densities=external_lhs_log_densities,
-            stop_dlogZ=0.01
+            external_lhs_points=external_lhs_points,
+            external_lhs_log_densities=external_lhs_log_densities,
+            stop_dlogZ=0.005
         )
 #except Exception as exc:
  #       print(f"[WARN] PARIS sampling failed: {exc}")

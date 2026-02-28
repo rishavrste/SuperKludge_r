@@ -80,23 +80,26 @@ else:
     xp=np
 
 m1 = 1e6
-m2 = 10
-a = 0.96 # 0.95
-e0 = 0.5 # 0.6 just spin first
+m2 = 1e4
+a = 0.9 
+p0 = 2.85813146e+01
+#p0 = 42.0
+e0 = 5.00000000e-01
 xI0 = 1.0
-dist = 0.4
-qS = xp.pi/4
-phiS = 1.0
-qK = 1 
-phiK = xp.pi/3
-Phi_phi0 = 0.9
-Phi_theta0 =0.5
-Phi_r0 = 0.4
+dist = 3.31765439e+01/2
+#dist = 5.0
+qS = 1.04719755e+00
+phiS = 7.85398163e-01
+qK = 6.28318531e-01
+
+phiK =5.23598776e-01
+Phi_phi0 = 0.1
+Phi_theta0 =0.2
+Phi_r0 = 0.3
 
 dt = 10.0
-T = 0.5
-
-chi2 = 0.0
+T = 0.25
+chi2 = 9.50000000e-01
 
 dev_0_p=0.0
 dev_0_e=0.0
@@ -108,7 +111,6 @@ evolve_1PA = False
 evolve_primary = False
 evolve_2PA = False
 deviation_included=True
-p0=7.0
 
 print(use_gpu)
 pars_list_com = [m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0,\
@@ -155,7 +157,7 @@ add_param_args={"chi2":chi2,"evolve_1PA":evolve_1PA,"evolve_primary":evolve_prim
 "dev0e":dev_0_e,"dev1p":dev_1_p,"dev1e":dev_1_e,"dev2p":dev_2_p,"dev2e":dev_2_e}
 
 
-param_names = ['m1','m2','a','p0','e0','qS','phiS','Phi_phi0','Phi_r0','dev0p','dev0e']
+param_names = ['m1','m2','a','p0','e0','qS','phiS','Phi_phi0','Phi_r0']
 pars_list = [m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0]
 
 param_dict = {
@@ -191,7 +193,6 @@ std= np.sqrt(np.diag(cov))
 params_truth_in = np.array([np.log(m1), m2, a, p0, e0, qS, phiS, Phi_phi0,Phi_r0,dev_0_p,dev_0_e])
 
 
-chi2=0
 deviation_included=True
 evolve_1PA=True
 evolve_primary=False
@@ -212,44 +213,55 @@ PSD=generate_PSD(waveform_true,dt,use_gpu=use_gpu,
                 noise_kwargs={'sens_fn':CornishLISASens,'return_type':'PSD'},
                 channels=["A","E"])
 waveform_true=xp.array(waveform_true)
-chi2=0
-deviation_included=True
+waveform_true
+
+
+deviation_included=False
 evolve_1PA=False
 evolve_primary=False
 evolve_2PA=False
 add_args = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,dev_0_p,dev_0_e,dev_1_p,dev_1_e,dev_2_p,dev_2_e]
 
-def loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e_):
-    add_args__ = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,\
-                dev0p_,dev0e_,dev_1_p,dev_1_e,dev_2_p,dev_2_e]
-    waveform_temp=xp.array(superkludge_wave(m1_, m2_, a_, p0_, e0_, xI0, dist, qS_, phiS_, qK, phiK, Phi_phi0_, Phi_theta0, Phi_r0_, *add_args__, dt=dt, T=T,use_gpu=use_gpu))
+def loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_):
+    waveform_temp=xp.array(superkludge_wave(m1_, m2_, a_, p0_, e0_, xI0, dist, qS_, phiS_, qK, phiK, Phi_phi0_, Phi_theta0, Phi_r0_, *add_args, dt=dt, T=T,use_gpu=use_gpu))
 
     diff_inner=inner_product(waveform_true-waveform_temp,waveform_true-waveform_temp,PSD,dt,use_gpu=use_gpu)
-    #print(diff_inner)
-    return -0.5 * diff_inner * 10000
-
-def loglike_calc_snr(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e_):
-    add_args__ = [chi2, evolve_1PA, evolve_primary, evolve_2PA,deviation_included,\
-                dev0p_,dev0e_,dev_1_p,dev_1_e,dev_2_p,dev_2_e]
-    waveform_temp=xp.array(superkludge_wave(m1_, m2_, a_, p0_, e0_, xI0, dist, qS_, phiS_, qK, phiK, Phi_phi0_, Phi_theta0, Phi_r0_, *add_args__, dt=dt, T=T))
-    diff_inner=inner_prod_without_phase(waveform_temp,waveform_true,PSD,dt,use_gpu=use_gpu)/np.sqrt(inner_prod_without_phase(waveform_temp,waveform_temp,PSD,dt,use_gpu=use_gpu))
-    #print(diff_inner)
     return -0.5 * diff_inner
+
+def timemax_correlation(h1, h2):
+
+    # FFT with dt scaling
+    H1 = xp.array([xp.fft.rfft(h1[k]) * dt for k in range(2)])
+    H2 = xp.array([xp.fft.rfft(h2[k]) * dt for k in range(2)])
+    # print("H1 shape: ", H1.shape
+    #       ,"H2 shape: ", H2.shape)
+    # print("PSD shape: ", PSD.shape)
+
+    Y = xp.zeros_like(H1)
+    for i in range(2):
+        Y[i,1:] = H1[i,1:] * xp.conj(H2[i,1:]) / (0.5 * PSD[i])  # Avoid DC component
+    # IFFT to time domain with proper normalization
+    S =xp.array([xp.fft.irfft(Y[i]) / dt for i in range(2)])
+    # Return maximum correlation
+    return  xp.max(xp.abs(S))
+
+def loglike_calc_time_max(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_):
+    waveform_temp=xp.array(superkludge_wave(m1_, m2_, a_, p0_, e0_, xI0, dist, qS_, phiS_, qK, phiK, Phi_phi0_, Phi_theta0, Phi_r0_, *add_args, dt=dt, T=T,use_gpu=use_gpu))
+    max_corr = timemax_correlation(waveform_true, waveform_temp)
+    return max_corr
 
 def log_density(params):
     params = np.asarray(params)
     n_samples = params.shape[0] 
     log_likes = np.zeros(n_samples)
     for i in range(n_samples):
-        logm1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e_ = params[i]
+        logm1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_ = params[i]
         m1_ = np.exp(logm1_)
-
-        loglike = loglike_calc(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_,dev0p_,dev0e_)
+        loglike = loglike_calc_time_max(m1_, m2_, a_, p0_, e0_,qS_,phiS_,Phi_phi0_,Phi_r0_)
         log_likes[i] = loglike 
     return log_likes
 
-n=3
-
+n=300
 logm1lim = [max(0,params_truth_in[0] - n*std[0]), params_truth_in[0] + n*std[0]]
 m2lim = [max(0,params_truth_in[1] - n*std[1]), params_truth_in[1] + n*std[1]]
 alim = [max(-0.999,params_truth_in[2] - n*std[2]), min(params_truth_in[2] + n*std[2], 0.999)]  # a must be <1
@@ -259,9 +271,6 @@ qSlim = [params_truth_in[5] - n*std[5], params_truth_in[5] + n*std[5]]
 phiSlim = [params_truth_in[6] - n*std[6], params_truth_in[6] + n*std[6]]
 Phi_phi0lim = [params_truth_in[7] - n*std[7], params_truth_in[7] + n*std[7]]
 Phi_r0lim = [params_truth_in[8] - n*std[8], params_truth_in[8] + n*std[8]]
-dev0plim = [params_truth_in[9] - n*std[9], params_truth_in[9] + n*std[9]]
-dev0elim = [params_truth_in[10] - n*std[10], params_truth_in[10] + n*std[10]]
-
 def prior_transform(u):
 
     transformed = np.zeros_like(u)
@@ -281,8 +290,7 @@ def prior_transform(u):
     transformed[:, 6] = (phiSlim[1] - phiSlim[0]) * u[:, 6] + phiSlim[0]
     transformed[:, 7] = (Phi_phi0lim[1] - Phi_phi0lim[0]) * u[:, 7] + Phi_phi0lim[0]
     transformed[:, 8] = (Phi_r0lim[1] - Phi_r0lim[0]) * u[:, 8] + Phi_r0lim[0]
-    transformed[:, 9] = (dev0plim[1] - dev0plim[0]) * u[:, 9] + dev0plim[0]
-    transformed[:, 10] = (dev0elim[1] - dev0elim[0]) * u[:, 10] + dev0elim[0]
+
 
     return transformed
 
@@ -300,12 +308,9 @@ def inverse_prior_transform(x):
     u[:, 6] = (x[:, 6] - phiSlim[0]) / (phiSlim[1] - phiSlim[0])
     u[:, 7] = (x[:, 7] - Phi_phi0lim[0]) / (Phi_phi0lim[1] - Phi_phi0lim[0])
     u[:, 8] = (x[:, 8] - Phi_r0lim[0]) / (Phi_r0lim[1] - Phi_r0lim[0])
-    u[:, 9] = (x[:, 9] - dev0plim[0]) / (dev0plim[1] - dev0plim[0])
-    u[:, 10] = (x[:, 10] - dev0elim[0]) / (dev0elim[1] - dev0elim[0])
+
     
     return u
-
-
 
 logm1lim = [max(0,params_truth_in[0] - n*std[0]), params_truth_in[0] + n*std[0]]
 m2lim = [max(0,params_truth_in[1] - n*std[1]), params_truth_in[1] + n*std[1]]
@@ -316,28 +321,28 @@ qSlim = [params_truth_in[5] - n*std[5], params_truth_in[5] + n*std[5]]
 phiSlim = [params_truth_in[6] - n*std[6], params_truth_in[6] + n*std[6]]
 Phi_phi0lim = [params_truth_in[7] - n*std[7], params_truth_in[7] + n*std[7]]
 Phi_r0lim = [params_truth_in[8] - n*std[8], params_truth_in[8] + n*std[8]]
-dev0plim = [params_truth_in[9] - n*std[9], params_truth_in[9] + n*std[9]]
-dev0elim = [params_truth_in[10] - n*std[10], params_truth_in[10] + n*std[10]]
-ranges=[logm1lim, m2lim, alim, p0lim, e0lim, qSlim, phiSlim, Phi_phi0lim, Phi_r0lim, dev0plim, dev0elim]
-# def main():
-    
+
+ranges=[logm1lim, m2lim, alim, p0lim, e0lim, qSlim, phiSlim, Phi_phi0lim, Phi_r0lim]
+
 config = SamplerConfig(
     merge_confidence=0.9,          # Coverage prob → Mahalanobis merge radius R_m (higher is more permissive)
-    alpha=5000,                    # Use recent samples for weighting
-    trail_size=int(2e3),          # Maximum trials per iteration
+    alpha=10000,                    # Use recent samples for weighting
+    trail_size=int(1e3),          # Maximum trials per iteration
     boundary_limiting=True,        # Enable boundary constraints
     use_beta=True,                # Use beta correction for boundaries
     integral_num=int(1e5),        # MC samples for beta estimation
     gamma=500,                    # Covariance update frequency
     exclude_scale_z=10,       # No exclusion based on weights
     use_pool=False,               # Set to True for multiprocessing
+    cov_jitter=1e-10,             # Jitter added to covariance for stability
+
     # n_pool=4                     # Number of processes (if use_pool=True)
 )
 
-ndim = 11
-n_seed = 100  # Number of initial processes
-init_cov_list = [np.eye(ndim) * 1e-12] * n_seed
-savepath = 'paris_manin_t_05_large_spin_5'  # Directory to save results
+ndim = 9  # Number of parameters being sampled
+n_seed = int(5e4)  # Number of initial processes
+init_cov_list = [np.eye(ndim) * 1e-10] * n_seed
+savepath = 'paris_1PA_vs_0PA_9_time_max'  # Directory to save results
 
 # Create save directory
 os.makedirs(savepath, exist_ok=True)
@@ -358,23 +363,13 @@ sampler = Sampler(
 )
    # Prepare initial samples using Latin Hypercube Sampling
 print("Preparing LHS samples...")
-# sampler.prepare_lhs_samples(lhs_num=int(5e4), batch_size=50)
-# x = np.linspace(0.49999, 0.50001, 2000)
-
-# # Generate 99 random points in 11D
-# external_lhs_points = np.random.choice(x, size=(99, 11))
-
-# # Add the "true point" [0.5, 0.5, ..., 0.5] as the 100th point
-# external_lhs_points = np.vstack([external_lhs_points, [0.5]*11])
 
 #best value got so far
-true_point = np.array([0.50694697, 0.50372951, 0.50779315, 0.49249923, 0.49422435,
-        0.5000146 , 0.49797592, 0.49921514, 0.49582481, 0.50019394,
-        0.50048601])
+true_point = np.array([0.5, 0.5, 0.5, 0.5 , 0.5, 0.5, 0.5, 0.5, 0.5])
 
-scatter = 5.0e-8
-points = true_point + np.random.randn(99, 11) * scatter
-# Add the original point as the 100th row
+rng = np.random.default_rng(42)
+scatter = 1.0e-7
+points = true_point + rng.normal(size=(n_seed-1, 9)) * scatter
 external_lhs_points = np.vstack([points, true_point])
 print("Shape of points array:", external_lhs_points.shape)
 external_lhs_log_densities = log_density(prior_transform(external_lhs_points))
@@ -382,16 +377,13 @@ print("true points in corrrect space",params_truth_in)
 print("external_lhs_log_densities", external_lhs_log_densities)
 
 
-# external_lhs_points = np.vstack(external_lhs_points)
-# external_lhs_log_densities = np.concatenate(external_lhs_log_densities)
-
 sampler.run_sampling(
             num_iterations=int(1e5),
             savepath=savepath,
             print_iter=100,
             external_lhs_points=external_lhs_points,
             external_lhs_log_densities=external_lhs_log_densities,
-            stop_dlogZ=0.01
+            stop_dlogZ=0.005
         )
 #except Exception as exc:
  #       print(f"[WARN] PARIS sampling failed: {exc}")
@@ -411,8 +403,7 @@ weighted_cov = np.cov(samples_.T, aweights=weights_)
 
 print(f"\nTrue values: {params_truth_in}")
 print(f"Estimated deviation: {weighted_mean}")
-print(f"Mean deviation: {np.linalg.norm(weighted_mean - params_truth_in):.6f}")
+print(f"Mean deviation: {np.linalg.norm(weighted_mean - params_truth_in[0:5]):.6f}")
 
 print(f"\nTrue covariance diagonal: {np.diag(cov)}")
 print(f"Estimated covariance diagonal: {np.diag(weighted_cov)}")
-

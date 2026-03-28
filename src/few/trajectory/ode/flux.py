@@ -666,7 +666,7 @@ class SuperKludgeFlux(KerrEccEqFlux):
         try:
             self.evolve_2PA = bool(additional_args[3]) #whether to include 2PA corrections
         except IndexError:
-            self.evolve_2PA = True #defaults to True
+            self.evolve_2PA = False #defaults to True
 
         try:
             self.deviation_included = bool(additional_args[4]) #whether to add deviation

@@ -676,14 +676,14 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
         if(self.deviation_included):
             try:
-                self.C_p=additional_args[5]
+                self.C_p=additional_args[5]/self.massratio
       
             except:
                 print("deviation C_p not defined. Default to Zero")
                 self.C_p=0
 
             try:
-                self.C_e=additional_args[6]
+                self.C_e=additional_args[6]/self.massratio
             except:
                 print("deviation C_e not defined. Default to Zero")
                 self.C_e=0.0

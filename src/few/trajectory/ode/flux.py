@@ -812,10 +812,10 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
             #adding 2PA corrections:
             pdot2PAval = self.massratio**2 * pdot2PA(a_at_t, p, e, self.chi2)
-            pdot +=(1+ self.del_2_p*self.massratio)*pdot2PAval     #added deviation
+            pdot +=pdot2PAval     #added deviation
             
             edot2PAval = self.massratio**2 * edot2PA(a_at_t, p, e, self.chi2)
-            edot +=(1+ self.del_2_e*self.massratio)*edot2PAval  #added deviation
+            edot +=edot2PAval  #added deviation
 
             Omega_phi_2PAval = self.massratio**2 * OmegaPhi2PA(a_at_t, p, e, self.chi2)
             Omega_phi += Omega_phi_2PAval

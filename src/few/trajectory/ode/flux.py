@@ -658,7 +658,7 @@ class SuperKludgeFlux(KerrEccEqFlux):
         try:
             self.evolve_1PA = bool(additional_args[1]) #whether to include 1PA corrections.
         except IndexError:
-            self.evolve_1PA = True #defaults to True
+            self.evolve_1PA = False #defaults to True
             
         try:
             self.evolve_primary = bool(additional_args[2]) #whether to evolve \delta~M, \delta~a. If False, just set delta_m1, delta_a = 0.0 throughout evolution.
@@ -670,7 +670,7 @@ class SuperKludgeFlux(KerrEccEqFlux):
         try:
             self.evolve_2PA = bool(additional_args[3]) #whether to include 2PA corrections
         except IndexError:
-            self.evolve_2PA = True #defaults to True
+            self.evolve_2PA = False #defaults to True
 
         try:
             self.deviation_included = bool(additional_args[4]) #whether to add deviation

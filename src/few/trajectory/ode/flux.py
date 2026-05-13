@@ -693,37 +693,12 @@ class SuperKludgeFlux(KerrEccEqFlux):
             except:
                 #print("deviation 0_e not defined. Default to Zero")
                 self.del_0_e=0.0
-                
-            try:
-                self.del_1_p=additional_args[7]
-            except:
-               # print("deviation 1_p not defined. Default to Zero")
-                self.del_1_p=0.0
 
-            try:
-                self.del_1_e=additional_args[8]
-            except:
-               # print("deviation 1_e not defined. Default to Zero")
-                self.del_1_e=0.0
-
-            try:
-                self.del_2_p=additional_args[9]
-            except:
-               #print("deviation 2_P not defined. Default to Zero")
-                self.del_2_p=0
-            try:
-                self.del_2_e=additional_args[10]
-            except:
-                #print("deviation 0_P not defined. Default to Zero")
-                self.del_2_e=0.0
             
         else:
                 self.del_0_p=0
                 self.del_0_e=0
-                self.del_1_p=0
-                self.del_1_e=0
-                self.del_2_p=0
-                self.del_2_e=0
+
 
         #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included,self.del_0_p,self.chi2)
         
@@ -759,12 +734,12 @@ class SuperKludgeFlux(KerrEccEqFlux):
         Omega_phi, Omega_theta, Omega_r = get_fundamental_frequencies(a_at_t, p, e, x)
 
         Edot, Ldot = self.interpolate_flux_grids(p, e, x, a=a_at_t, pLSO=self.p_sep_cache)
-        try:
-            Edot=(1+self.massratio * self.del_0_p)*Edot
-            Ldot=(1+self.massratio * self.del_0_e)*Ldot 
-        except:
-            print("First order deviation values not found be careful")
-            print(self.deviation_included)
+        # try:
+        #     Edot=(1+self.massratio * self.del_0_p)*Edot
+        #     Ldot=(1+self.massratio * self.del_0_e)*Ldot 
+        # except:
+        #     print("First order deviation values not found be careful")
+        #     print(self.deviation_included)
                       
 
         return [Edot, Ldot, 0.0, Omega_phi, Omega_theta, Omega_r, 0.0, 0.0] #we will add delta_m1_dot, delta_a_dot in modify_rhs
@@ -823,10 +798,10 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
             #adding 1PA corrections:
             pdot1PAval = self.massratio * pdot1PA(a_at_t, p, e, self.chi2) #adiabatic pdot, edot are scaled by the massratio. So we lose one factor of massratio here.
-            pdot +=(1+ self.del_1_p*self.massratio)*pdot1PAval     #added deviation
+            pdot +=self.del_0_p*pdot1PAval     #added deviation
 
             edot1PAval = self.massratio * edot1PA(a_at_t, p, e, self.chi2)
-            edot +=(1+ self.del_1_e*self.massratio)*edot1PAval        #added deviation
+            edot +=self.del_0_e*edot1PAval        #added deviation
 
             Omega_phi_1PAval = self.massratio * OmegaPhi1PA(a_at_t, p, e, self.chi2) #adiabatic Omega_phi, Omega_r NOT scaled by the massratio. So we keep the factor of massratio here.
             Omega_phi += Omega_phi_1PAval
@@ -838,10 +813,10 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
             #adding 2PA corrections:
             pdot2PAval = self.massratio**2 * pdot2PA(a_at_t, p, e, self.chi2)
-            pdot +=(1+ self.del_2_p*self.massratio)*pdot2PAval     #added deviation
+            pdot +=pdot2PAval     #added deviation
             
             edot2PAval = self.massratio**2 * edot2PA(a_at_t, p, e, self.chi2)
-            edot +=(1+ self.del_2_e*self.massratio)*edot2PAval  #added deviation
+            edot +=edot2PAval  #added deviation
 
             Omega_phi_2PAval = self.massratio**2 * OmegaPhi2PA(a_at_t, p, e, self.chi2)
             Omega_phi += Omega_phi_2PAval

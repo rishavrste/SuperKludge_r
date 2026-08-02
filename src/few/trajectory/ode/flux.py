@@ -637,8 +637,42 @@ class SuperKludgeFlux(KerrEccEqFlux):
         evolve_1PA (bool) : whether to include 1PA corrections.
         evolve_primary (bool) : whether to evolve MBH mass M and spin a/chi1.
         evolve_2PA (bool) : whether to include 2PA corrections.
+        deviation_included (bool) : master switch for all deviation parameters below.
+                                    If False, every deviation coefficient is set to zero.
+
+    Deviation parameters (all optional, all default to 0.0, i.e. GR).
+    The two families are independent and may be used together or separately:
+
+        2.5PN-type deviation (additive correction to pdot, edot):
+            C_p (float) : index 5. Coefficient of the pdot deviation term.
+            C_e (float) : index 6. Coefficient of the edot deviation term.
+
+        Multiplicative deviation on the adiabatic fluxes:
+            del_0_p (float) : index 7. Scales the energy flux, Edot -> (1 + eta * del_0_p) Edot.
+            del_0_e (float) : index 8. Scales the angular momentum flux, Ldot -> (1 + eta * del_0_e) Ldot.
+
+    All additional arguments must be numeric: they are passed through ``np.asarray`` upstream,
+    so a single string entry would promote the whole array to a string dtype.
     """
 
+
+    def _get_deviation(self, additional_args, index: int, name: str) -> float:
+        """
+        Read an optional deviation coefficient from ``additional_args``.
+
+        Missing entries default to 0.0, which recovers GR for that coefficient. An entry that is
+        present but not numeric is a user error, so it warns before falling back to 0.0.
+        """
+        try:
+            value = additional_args[index]
+        except (IndexError, TypeError):
+            return 0.0
+
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            warnings.warn(f"Deviation parameter {name} is not numeric ({value!r}). Defaulting to zero.")
+            return 0.0
 
     def add_fixed_parameters(self, m1: float, m2: float, a: float, additional_args = None):
 
@@ -674,29 +708,22 @@ class SuperKludgeFlux(KerrEccEqFlux):
         except IndexError:
             self.deviation_included = False #defaults to False
 
-        if(self.deviation_included):
-            try:
-                self.C_p=additional_args[5]
-            except:
-                print("deviation C_p not defined. Default to Zero")
-                self.C_p=0
+        #deviation coefficients. Each family lives in its own slots, so they can be used
+        #together or separately. Anything not supplied stays at zero, i.e. GR.
+        deviation_slots = {
+            "C_p": 5,        #2.5PN-type additive pdot deviation
+            "C_e": 6,        #2.5PN-type additive edot deviation
+            "del_0_p": 7,    #adiabatic Edot rescaling
+            "del_0_e": 8,    #adiabatic Ldot rescaling
+        }
 
-            try:
-                self.C_e=additional_args[6]
-            except:
-                print("deviation C_e not defined. Default to Zero")
-                self.C_e=0.0
-                
-            
-        else:
-                # self.A_p=0
-                # self.B_p=0
-                # self.A_e=0
-                # self.B_e=0
-                self.C_p = 0
-                self.C_e = 0
+        for name, index in deviation_slots.items():
+            if self.deviation_included:
+                setattr(self, name, self._get_deviation(additional_args, index, name))
+            else:
+                setattr(self, name, 0.0)
 
-        #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included,self.B_p,self.chi2)
+        #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included,self.C_p,self.chi2)
         
         if additional_args is None:
             self.num_add_args = 0
@@ -730,6 +757,11 @@ class SuperKludgeFlux(KerrEccEqFlux):
         Omega_phi, Omega_theta, Omega_r = get_fundamental_frequencies(a_at_t, p, e, x)
 
         Edot, Ldot = self.interpolate_flux_grids(p, e, x, a=a_at_t, pLSO=self.p_sep_cache)
+
+        if self.deviation_included:
+            #multiplicative deviation on the adiabatic fluxes. Zero coefficients recover GR.
+            Edot = (1 + self.massratio * self.del_0_p) * Edot
+            Ldot = (1 + self.massratio * self.del_0_e) * Ldot
 
         return [Edot, Ldot, 0.0, Omega_phi, Omega_theta, Omega_r, 0.0, 0.0] #we will add delta_m1_dot, delta_a_dot in modify_rhs
 
@@ -785,12 +817,11 @@ class SuperKludgeFlux(KerrEccEqFlux):
             
         if self.deviation_included:
 
-            #PN corrections
-           # print(p,e)
+            #2.5PN-type additive corrections. Zero coefficients recover GR.
             #print("Adding deviation with C_p: ", self.C_p, "C_e: ", self.C_e)
             pdot +=self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5)
-            edot +=self.massratio * e* self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5)
-        
+            edot +=self.massratio * e * self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5)
+
         if self.evolve_1PA:
 
             #adding 1PA corrections:

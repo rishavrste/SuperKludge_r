@@ -641,15 +641,13 @@ class SuperKludgeFlux(KerrEccEqFlux):
                                     If False, every deviation coefficient is set to zero.
 
     Deviation parameters (all optional, all default to 0.0, i.e. GR).
-    The two families are independent and may be used together or separately:
+    A simple multiplicative deviation applied directly to the p, e trajectory:
 
-        2.5PN-type deviation (additive correction to pdot, edot):
-            C_p (float) : index 5. Coefficient of the pdot deviation term.
-            C_e (float) : index 6. Coefficient of the edot deviation term.
+        del_0_p (float) : index 5. Scales the adiabatic pdot, pdot -> (1 + eta * del_0_p) pdot.
+        del_0_e (float) : index 6. Scales the adiabatic edot, edot -> (1 + eta * del_0_e) edot.
 
-        Multiplicative deviation on the adiabatic fluxes:
-            del_0_p (float) : index 7. Scales the energy flux, Edot -> (1 + eta * del_0_p) Edot.
-            del_0_e (float) : index 8. Scales the angular momentum flux, Ldot -> (1 + eta * del_0_e) Ldot.
+    The rescaling is applied before the 1PA and 2PA contributions are added, so it deviates the
+    adiabatic term only, matching the placement of the flux-level deviation it replaces.
 
     All additional arguments must be numeric: they are passed through ``np.asarray`` upstream,
     so a single string entry would promote the whole array to a string dtype.
@@ -708,13 +706,10 @@ class SuperKludgeFlux(KerrEccEqFlux):
         except IndexError:
             self.deviation_included = False #defaults to False
 
-        #deviation coefficients. Each family lives in its own slots, so they can be used
-        #together or separately. Anything not supplied stays at zero, i.e. GR.
+        #deviation coefficients. Anything not supplied stays at zero, i.e. GR.
         deviation_slots = {
-            "C_p": 5,        #2.5PN-type additive pdot deviation
-            "C_e": 6,        #2.5PN-type additive edot deviation
-            "del_0_p": 7,    #adiabatic Edot rescaling
-            "del_0_e": 8,    #adiabatic Ldot rescaling
+            "del_0_p": 5,    #adiabatic pdot rescaling
+            "del_0_e": 6,    #adiabatic edot rescaling
         }
 
         for name, index in deviation_slots.items():
@@ -723,7 +718,7 @@ class SuperKludgeFlux(KerrEccEqFlux):
             else:
                 setattr(self, name, 0.0)
 
-        #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included,self.C_p,self.chi2)
+        #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included,self.del_0_p,self.chi2)
         
         if additional_args is None:
             self.num_add_args = 0
@@ -757,11 +752,6 @@ class SuperKludgeFlux(KerrEccEqFlux):
         Omega_phi, Omega_theta, Omega_r = get_fundamental_frequencies(a_at_t, p, e, x)
 
         Edot, Ldot = self.interpolate_flux_grids(p, e, x, a=a_at_t, pLSO=self.p_sep_cache)
-
-        if self.deviation_included:
-            #multiplicative deviation on the adiabatic fluxes. Zero coefficients recover GR.
-            Edot = (1 + self.massratio * self.del_0_p) * Edot
-            Ldot = (1 + self.massratio * self.del_0_e) * Ldot
 
         return [Edot, Ldot, 0.0, Omega_phi, Omega_theta, Omega_r, 0.0, 0.0] #we will add delta_m1_dot, delta_a_dot in modify_rhs
 
@@ -817,10 +807,12 @@ class SuperKludgeFlux(KerrEccEqFlux):
             
         if self.deviation_included:
 
-            #2.5PN-type additive corrections. Zero coefficients recover GR.
-            #print("Adding deviation with C_p: ", self.C_p, "C_e: ", self.C_e)
-            pdot +=self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5)
-            edot +=self.massratio * e * self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5)
+            #simple multiplicative deviation on the adiabatic p, e trajectory.
+            #applied before the 1PA/2PA blocks, so it scales the adiabatic term only.
+            #zero coefficients recover GR.
+            #print("Adding deviation with del_0_p: ", self.del_0_p, "del_0_e: ", self.del_0_e)
+            pdot *= 1 + self.massratio * self.del_0_p
+            edot *= 1 + self.massratio * self.del_0_e
 
         if self.evolve_1PA:
 

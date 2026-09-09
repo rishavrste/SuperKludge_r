@@ -637,19 +637,29 @@ class SuperKludgeFlux(KerrEccEqFlux):
         evolve_1PA (bool) : whether to include 1PA corrections.
         evolve_primary (bool) : whether to evolve MBH mass M and spin a/chi1.
         evolve_2PA (bool) : whether to include 2PA corrections.
-        deviation_included (bool) : master switch for all deviation parameters below.
-                                    If False, every deviation coefficient is set to zero.
+        deviation_included (bool) : index 4. Master switch for the 2.5PN deviation
+                                    parameters C_p, C_e. If False, both are set to zero.
+        environmental_included (bool) : index 7. Master switch for the environmental
+                                    parameters below. If False, all four are set to zero.
 
-    Deviation parameters (all optional, all default to 0.0, i.e. GR).
+    Deviation parameters (all optional, all scalars, all default to 0.0, i.e. GR).
     The two families are independent and may be used together or separately:
 
-        2.5PN-type deviation (additive correction to pdot, edot):
+        2.5PN-type deviation, an additive correction to pdot, edot:
             C_p (float) : index 5. Coefficient of the pdot deviation term.
             C_e (float) : index 6. Coefficient of the edot deviation term.
 
-        Multiplicative deviation on the adiabatic fluxes:
-            del_0_p (float) : index 7. Scales the energy flux, Edot -> (1 + eta * del_0_p) Edot.
-            del_0_e (float) : index 8. Scales the angular momentum flux, Ldot -> (1 + eta * del_0_e) Ldot.
+        Environmental deviation, a multiplicative correction to Ldot only. Edot is
+        deliberately left at its GR value:
+
+            Ldot -> Ldot * (1 + A_PM * (p / 10)**n_PM * F_m + A_GC * p**n_GC)
+
+        with F_m == 1 here (m = 0). p is already in units of M, so (p / 10) is p / (10 M)
+        and p is p / M, matching the reference expression.
+            A_PM (float) : index 8.  Amplitude of the PM term.
+            n_PM (float) : index 9.  Radial power of the PM term.
+            A_GC (float) : index 10. Amplitude of the GC term.
+            n_GC (float) : index 11. Radial power of the GC term.
 
     All additional arguments must be numeric: they are passed through ``np.asarray`` upstream,
     so a single string entry would promote the whole array to a string dtype.
@@ -708,17 +718,35 @@ class SuperKludgeFlux(KerrEccEqFlux):
         except IndexError:
             self.deviation_included = False #defaults to False
 
-        #deviation coefficients. Each family lives in its own slots, so they can be used
-        #together or separately. Anything not supplied stays at zero, i.e. GR.
+        try:
+            self.environmental_included = bool(additional_args[7]) #whether to add environmental terms
+        except (IndexError, TypeError):
+            self.environmental_included = False #defaults to False
+
+        #deviation coefficients. Each family lives in its own slots behind its own master
+        #switch, so they can be used together or separately. Anything not supplied stays
+        #at zero, i.e. GR.
         deviation_slots = {
             "C_p": 5,        #2.5PN-type additive pdot deviation
             "C_e": 6,        #2.5PN-type additive edot deviation
-            "del_0_p": 7,    #adiabatic Edot rescaling
-            "del_0_e": 8,    #adiabatic Ldot rescaling
+        }
+
+        #environmental coefficients, all plain scalars. See the class docstring for the form.
+        environmental_slots = {
+            "A_PM": 8,       #amplitude of the PM term
+            "n_PM": 9,       #radial power of the PM term
+            "A_GC": 10,      #amplitude of the GC term
+            "n_GC": 11,      #radial power of the GC term
         }
 
         for name, index in deviation_slots.items():
             if self.deviation_included:
+                setattr(self, name, self._get_deviation(additional_args, index, name))
+            else:
+                setattr(self, name, 0.0)
+
+        for name, index in environmental_slots.items():
+            if self.environmental_included:
                 setattr(self, name, self._get_deviation(additional_args, index, name))
             else:
                 setattr(self, name, 0.0)
@@ -758,10 +786,16 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
         Edot, Ldot = self.interpolate_flux_grids(p, e, x, a=a_at_t, pLSO=self.p_sep_cache)
 
-        if self.deviation_included:
-            #multiplicative deviation on the adiabatic fluxes. Zero coefficients recover GR.
-            Edot = (1 + self.massratio * self.del_0_p) * Edot
-            Ldot = (1 + self.massratio * self.del_0_e) * Ldot
+        if self.environmental_included:
+            #environmental correction to Ldot only; Edot is deliberately untouched.
+            #p is already in units of M, so p/10 is p/(10 M) and p is p/M. F_m = 1 since m = 0.
+            env = 1.0 + self.A_PM * (p / 10.0) ** self.n_PM + self.A_GC * p ** self.n_GC
+            if not (env > 0.0):
+                raise ValueError(
+                    f"Environmental flux factor is not positive ({env:.6g}) at p={p:.6g}: "
+                    "Ldot would change sign or is non-finite. Check A_PM, n_PM, A_GC, n_GC."
+                )
+            Ldot = env * Ldot
 
         return [Edot, Ldot, 0.0, Omega_phi, Omega_theta, Omega_r, 0.0, 0.0] #we will add delta_m1_dot, delta_a_dot in modify_rhs
 
@@ -777,8 +811,8 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
         delta_m1 = y[-2]
         delta_a = y[-1]
-        delta_m1_dot = ydot[-2]
-        delta_a_dot = ydot[-2]
+       # delta_m1_dot = ydot[-2]
+     #   delta_a_dot = ydot[-2]
         
         M_at_t = self.m1 + delta_m1 #this is how delta_m1 is defined
         a_at_t = self.a + delta_a #this is how delta_a is defined

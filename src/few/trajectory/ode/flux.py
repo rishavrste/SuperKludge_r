@@ -623,6 +623,9 @@ class KerrEccEqFlux(ODEBase):
 
         Omega_phi, Omega_theta, Omega_r = get_fundamental_frequencies(self.a, p, e, x)
 
+        #CAUTION: these names hold Edot, Ldot only when flux_output_convention is "ELQ".
+        #Under the default "pex" they hold pdot, edot (see interpolate_flux_grids), and
+        #apply_Jacobian_bool is then False because the transform has already been applied.
         Edot, Ldot = self.interpolate_flux_grids(p, e, x, a=self.a, pLSO=self.p_sep_cache)
 
         return [Edot, Ldot, 0.0, Omega_phi, Omega_theta, Omega_r]
@@ -649,17 +652,30 @@ class SuperKludgeFlux(KerrEccEqFlux):
             C_p (float) : index 5. Coefficient of the pdot deviation term.
             C_e (float) : index 6. Coefficient of the edot deviation term.
 
-        Environmental deviation, a multiplicative correction to Ldot only. Edot is
-        deliberately left at its GR value:
+        Environmental deviation, a multiplicative torque on Ldot:
 
-            Ldot -> Ldot * (1 + A_PM * (p / 10)**n_PM * F_m + A_GC * p**n_GC)
+            Ldot -> env * Ldot,  env = 1 + A_PM * (p / 10)**n_PM * F_m + A_GC * p**n_GC
 
         with F_m == 1 here (m = 0). p is already in units of M, so (p / 10) is p / (10 M)
         and p is p / M, matching the reference expression.
+
             A_PM (float) : index 8.  Amplitude of the PM term.
             n_PM (float) : index 9.  Radial power of the PM term.
             A_GC (float) : index 10. Amplitude of the GC term.
             n_GC (float) : index 11. Radial power of the GC term.
+
+    IMPLEMENTED FOR CIRCULAR ORBITS ONLY. This class runs with
+    flux_output_convention = "pex", so the ODE works in (pdot, edot) and never sees Edot or
+    Ldot. On a circular orbit L = L_circ(p) gives Ldot = (dL/dp) pdot, and the torque's own
+    energy loss is fixed by Edot = Omega_phi Ldot, so the pair together is exactly
+    `pdot -> env * pdot` -- which is what evaluate_rhs applies. The Jacobian is homogeneous
+    of degree 1 in (Edot, Ldot), so that carries no residual factor.
+
+    At finite eccentricity the identity Edot = Omega_phi Ldot fails, and an Ldot-only torque
+    reaches pdot and edot through the Jacobian with different, (a, p, e)-dependent factors.
+    Doing that correctly means constructing this class with flux_output_convention = "ELQ"
+    and perturbing Edot and Ldot before the Jacobian -- and deciding, from the environment
+    being modelled, what dEdot accompanies dLdot.
 
     All additional arguments must be numeric: they are passed through ``np.asarray`` upstream,
     so a single string entry would promote the whole array to a string dtype.
@@ -784,20 +800,34 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
         Omega_phi, Omega_theta, Omega_r = get_fundamental_frequencies(a_at_t, p, e, x)
 
-        Edot, Ldot = self.interpolate_flux_grids(p, e, x, a=a_at_t, pLSO=self.p_sep_cache)
+        #NOTE ON NAMES: flux_output_convention is "pex" for this class (inherited default,
+        #KerrEccEqFlux.__init__), so interpolate_flux_grids returns pdot, edot -- NOT Edot,
+        #Ldot -- and apply_Jacobian_bool is False (base.py:115), i.e. the (E, L) -> (p, e)
+        #Jacobian has already been applied inside the grid construction. Naming these
+        #Edot, Ldot is what previously made the environmental term multiply edot by mistake.
+        pdot, edot = self.interpolate_flux_grids(p, e, x, a=a_at_t, pLSO=self.p_sep_cache)
 
         if self.environmental_included:
-            #environmental correction to Ldot only; Edot is deliberately untouched.
+            #Environmental torque on Ldot. The population is circular, and there L = L_circ(p)
+            #forces Ldot = (dL/dp) pdot together with Edot = Omega_phi Ldot (satisfied by these
+            #grids to ~1e-10), so the torque and its consistent energy loss together are exactly
+            #pdot -> env * pdot. The Jacobian is homogeneous of degree 1 in (Edot, Ldot), so the
+            #factor carries through with no residual -- checked against the "ELQ" route, same
+            #trajectory to machine precision.
             #p is already in units of M, so p/10 is p/(10 M) and p is p/M. F_m = 1 since m = 0.
+            #CIRCULAR ONLY: at finite e, Edot = Omega_phi Ldot fails and an Ldot-only torque
+            #reaches pdot and edot with different, (a, p, e)-dependent factors. Doing this
+            #properly there means setting flux_output_convention = "ELQ" and perturbing the
+            #fluxes before the Jacobian, not rescaling pdot.
             env = 1.0 + self.A_PM * (p / 10.0) ** self.n_PM + self.A_GC * p ** self.n_GC
             if not (env > 0.0):
                 raise ValueError(
                     f"Environmental flux factor is not positive ({env:.6g}) at p={p:.6g}: "
                     "Ldot would change sign or is non-finite. Check A_PM, n_PM, A_GC, n_GC."
                 )
-            Ldot = env * Ldot
+            pdot = env * pdot
 
-        return [Edot, Ldot, 0.0, Omega_phi, Omega_theta, Omega_r, 0.0, 0.0] #we will add delta_m1_dot, delta_a_dot in modify_rhs
+        return [pdot, edot, 0.0, Omega_phi, Omega_theta, Omega_r, 0.0, 0.0] #we will add delta_m1_dot, delta_a_dot in modify_rhs
 
     def modify_rhs( self, ydot: np.ndarray, y: np.ndarray, **kwargs) -> None:
         """

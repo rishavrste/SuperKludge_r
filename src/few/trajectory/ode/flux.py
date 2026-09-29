@@ -643,13 +643,10 @@ class SuperKludgeFlux(KerrEccEqFlux):
     Deviation parameters (all optional, all default to 0.0, i.e. GR).
     The two families are independent and may be used together or separately:
 
-        2.5PN-type deviation (additive correction to pdot, edot):
+        2-PA-0PN-type deviation (additive correction to pdot, edot):
             C_p (float) : index 5. Coefficient of the pdot deviation term.
             C_e (float) : index 6. Coefficient of the edot deviation term.
 
-        Multiplicative deviation on the adiabatic fluxes:
-            del_0_p (float) : index 7. Scales the energy flux, Edot -> (1 + eta * del_0_p) Edot.
-            del_0_e (float) : index 8. Scales the angular momentum flux, Ldot -> (1 + eta * del_0_e) Ldot.
 
     All additional arguments must be numeric: they are passed through ``np.asarray`` upstream,
     so a single string entry would promote the whole array to a string dtype.
@@ -713,8 +710,6 @@ class SuperKludgeFlux(KerrEccEqFlux):
         deviation_slots = {
             "C_p": 5,        #2.5PN-type additive pdot deviation
             "C_e": 6,        #2.5PN-type additive edot deviation
-            "del_0_p": 7,    #adiabatic Edot rescaling
-            "del_0_e": 8,    #adiabatic Ldot rescaling
         }
 
         for name, index in deviation_slots.items():
@@ -757,11 +752,6 @@ class SuperKludgeFlux(KerrEccEqFlux):
         Omega_phi, Omega_theta, Omega_r = get_fundamental_frequencies(a_at_t, p, e, x)
 
         Edot, Ldot = self.interpolate_flux_grids(p, e, x, a=a_at_t, pLSO=self.p_sep_cache)
-
-        if self.deviation_included:
-            #multiplicative deviation on the adiabatic fluxes. Zero coefficients recover GR.
-            Edot = (1 + self.massratio * self.del_0_p) * Edot
-            Ldot = (1 + self.massratio * self.del_0_e) * Ldot
 
         return [Edot, Ldot, 0.0, Omega_phi, Omega_theta, Omega_r, 0.0, 0.0] #we will add delta_m1_dot, delta_a_dot in modify_rhs
 
@@ -815,12 +805,6 @@ class SuperKludgeFlux(KerrEccEqFlux):
                     (dedE(a_at_t, p, e, 1.0)*dEdm1(a_at_t, p, e, 1.0, M_at_t) + dedL(a_at_t, p, e, 1.0)*dLdm1(a_at_t, p, e, 1.0, M_at_t))*delta_m1_dot)
             """
             
-        if self.deviation_included:
-
-            #2.5PN-type additive corrections. Zero coefficients recover GR.
-            #print("Adding deviation with C_p: ", self.C_p, "C_e: ", self.C_e)
-            pdot +=self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5)
-            edot +=self.massratio * e * self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5)
 
         if self.evolve_1PA:
 
@@ -829,7 +813,14 @@ class SuperKludgeFlux(KerrEccEqFlux):
             pdot +=pdot1PAval    
 
             edot1PAval = self.massratio * edot1PA(a_at_t, p, e, self.chi2)
-            edot +=edot1PAval        #added deviation
+            edot +=edot1PAval 
+
+            if self.deviation_included:
+
+            #0PN-2PA type additive corrections. Zero coefficients recover GR.
+            #print("Adding deviation with C_p: ", self.C_p, "C_e: ", self.C_e)
+                pdot +=self.massratio**2 * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5)
+                edot +=self.massratio**2 * e * self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5)
 
             Omega_phi_1PAval = self.massratio * OmegaPhi1PA(a_at_t, p, e, self.chi2) #adiabatic Omega_phi, Omega_r NOT scaled by the massratio. So we keep the factor of massratio here.
             Omega_phi += Omega_phi_1PAval

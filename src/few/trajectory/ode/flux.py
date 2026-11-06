@@ -711,10 +711,10 @@ class SuperKludgeFlux(KerrEccEqFlux):
         #deviation coefficients. Each family lives in its own slots, so they can be used
         #together or separately. Anything not supplied stays at zero, i.e. GR.
         deviation_slots = {
-            "C_p": 5,        #2.5PN-type additive pdot deviation
-            "C_e": 6,        #2.5PN-type additive edot deviation
-            "del_0_p": 7,    #adiabatic Edot rescaling
-            "del_0_e": 8,    #adiabatic Ldot rescaling
+            "C_p": 5,        #0PN-1PN-type additive pdot deviation
+            "C_e": 6,        #0PN-1PN-type additive edot deviation
+            "n_p": 7,    #power lawa rescaling
+            "n_e": 8,    #power law rescaling
         }
 
         for name, index in deviation_slots.items():
@@ -757,11 +757,6 @@ class SuperKludgeFlux(KerrEccEqFlux):
         Omega_phi, Omega_theta, Omega_r = get_fundamental_frequencies(a_at_t, p, e, x)
 
         Edot, Ldot = self.interpolate_flux_grids(p, e, x, a=a_at_t, pLSO=self.p_sep_cache)
-
-        if self.deviation_included:
-            #multiplicative deviation on the adiabatic fluxes. Zero coefficients recover GR.
-            Edot = (1 + self.massratio * self.del_0_p) * Edot
-            Ldot = (1 + self.massratio * self.del_0_e) * Ldot
 
         return [Edot, Ldot, 0.0, Omega_phi, Omega_theta, Omega_r, 0.0, 0.0] #we will add delta_m1_dot, delta_a_dot in modify_rhs
 
@@ -817,10 +812,10 @@ class SuperKludgeFlux(KerrEccEqFlux):
             
         if self.deviation_included:
 
-            #2.5PN-type additive corrections. Zero coefficients recover GR.
+            #0PN-1PN-type additive corrections. Zero coefficients recover GR.
             #print("Adding deviation with C_p: ", self.C_p, "C_e: ", self.C_e)
-            pdot +=self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5)
-            edot +=self.massratio * e * self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5)
+            pdot +=(self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5))*((p/10)**(self.n_p)) #added deviation
+            edot +=(self.massratio * e * self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5))*((p/10)**(self.n_e)) #added deviation
 
         if self.evolve_1PA:
 

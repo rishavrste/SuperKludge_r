@@ -640,16 +640,21 @@ class SuperKludgeFlux(KerrEccEqFlux):
         deviation_included (bool) : master switch for all deviation parameters below.
                                     If False, every deviation coefficient is set to zero.
 
-    Deviation parameters (all optional, all default to 0.0, i.e. GR).
-    The two families are independent and may be used together or separately:
+    Deviation parameters (all optional, all default to 0.0, i.e. GR):
 
-        2.5PN-type deviation (additive correction to pdot, edot):
+        Power-law PN deviation, an additive correction to pdot, edot:
+
+            pdot += eta * C_p * (1 - e^2)^1.5 * (8 + 7 e^2) / p^3.5 * (p / 10)^n_p
+            edot += eta * e * C_e * (1 - e^2)^1.5 * (304 + 121 e^2) / p^4.5 * (p / 10)^n_e
+
             C_p (float) : index 5. Coefficient of the pdot deviation term.
             C_e (float) : index 6. Coefficient of the edot deviation term.
+            n_p (float) : index 7. Power of (p / 10) in the pdot term.
+            n_e (float) : index 8. Power of (p / 10) in the edot term.
 
-        Multiplicative deviation on the adiabatic fluxes:
-            del_0_p (float) : index 7. Scales the energy flux, Edot -> (1 + eta * del_0_p) Edot.
-            del_0_e (float) : index 8. Scales the angular momentum flux, Ldot -> (1 + eta * del_0_e) Ldot.
+        n_p = n_e = 0 is the earlier 2.5PN-type C_p, C_e model. With C = 0 the matching n has no
+        effect, so the derivative with respect to n vanishes there. Relative to the leading
+        flux, n = +0.5 scales as 0PN and n = -0.5 as 1PN.
 
     All additional arguments must be numeric: they are passed through ``np.asarray`` upstream,
     so a single string entry would promote the whole array to a string dtype.
@@ -713,8 +718,8 @@ class SuperKludgeFlux(KerrEccEqFlux):
         deviation_slots = {
             "C_p": 5,        #0PN-1PN-type additive pdot deviation
             "C_e": 6,        #0PN-1PN-type additive edot deviation
-            "n_p": 7,    #power lawa rescaling
-            "n_e": 8,    #power law rescaling
+            "n_p": 7,        #power of (p / 10) in the pdot deviation
+            "n_e": 8,        #power of (p / 10) in the edot deviation
         }
 
         for name, index in deviation_slots.items():

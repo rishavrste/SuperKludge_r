@@ -718,8 +718,10 @@ class SuperKludgeFlux(KerrEccEqFlux):
         deviation_slots = {
             "C_p": 5,        #0PN-1PN-type additive pdot deviation
             "C_e": 6,        #0PN-1PN-type additive edot deviation
-            "n_p": 7,        #power of (p / 10) in the pdot deviation
-            "n_e": 8,        #power of (p / 10) in the edot deviation
+            "A_p": 7,        #0PN-1PN-type additive edot deviation
+            "A_e": 8,        #0PN-1PN-type additive edot deviation
+            "n_p": 9,        #power of (p / 10) in the pdot deviation
+            "n_e": 10,        #power of (p / 10) in the edot deviation
         }
 
         for name, index in deviation_slots.items():
@@ -819,8 +821,8 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
             #0PN-1PN-type additive corrections. Zero coefficients recover GR.
             #print("Adding deviation with C_p: ", self.C_p, "C_e: ", self.C_e)
-            pdot +=(self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5))*((p/10)**(self.n_p)) #added deviation
-            edot +=(self.massratio * e * self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5))*((p/10)**(self.n_e)) #added deviation
+            pdot +=(self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5)) + self.A_p*((p/10)**(self.n_p)) #added deviation
+            edot +=(self.massratio * e * self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5))+ self.A_e*((p/10)**(self.n_e)) #added deviation
 
         if self.evolve_1PA:
 

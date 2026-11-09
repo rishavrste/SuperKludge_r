@@ -642,19 +642,22 @@ class SuperKludgeFlux(KerrEccEqFlux):
 
     Deviation parameters (all optional, all default to 0.0, i.e. GR):
 
-        Power-law PN deviation, an additive correction to pdot, edot:
+        PN deviation plus a power-law environmental term, with pdot_GR, edot_GR the vacuum rates:
 
-            pdot += eta * C_p * (1 - e^2)^1.5 * (8 + 7 e^2) / p^3.5 * (p / 10)^n_p
-            edot += eta * e * C_e * (1 - e^2)^1.5 * (304 + 121 e^2) / p^4.5 * (p / 10)^n_e
+            pdot = pdot_GR * (1 + A_p * (p / 10)^n_p) + eta * C_p * (1 - e^2)^1.5 * (8 + 7 e^2) / p^3.5
+            edot = edot_GR * (1 + A_e * (p / 10)^n_e) + eta * e * C_e * (1 - e^2)^1.5 * (304 + 121 e^2) / p^4.5
 
-            C_p (float) : index 5. Coefficient of the pdot deviation term.
-            C_e (float) : index 6. Coefficient of the edot deviation term.
-            n_p (float) : index 7. Power of (p / 10) in the pdot term.
-            n_e (float) : index 8. Power of (p / 10) in the edot term.
+            C_p (float) : index 5. Coefficient of the 2.5PN-type pdot term.
+            C_e (float) : index 6. Coefficient of the 2.5PN-type edot term.
+            A_p (float) : index 7. Relative environmental change of pdot at p = 10.
+            A_e (float) : index 8. Relative environmental change of edot at p = 10.
+            n_p (float) : index 9. Power of (p / 10) in the pdot environmental term.
+            n_e (float) : index 10. Power of (p / 10) in the edot environmental term.
 
-        n_p = n_e = 0 is the earlier 2.5PN-type C_p, C_e model. With C = 0 the matching n has no
-        effect, so the derivative with respect to n vanishes there. Relative to the leading
-        flux, n = +0.5 scales as 0PN and n = -0.5 as 1PN.
+        A_p = A_e = 0 is the earlier C_p, C_e model, and all six at zero is GR. With A = 0 the
+        matching n has no effect, so the derivative with respect to n vanishes there. The
+        environmental term scales with the vacuum rate, so it carries eta and edot keeps its
+        factor of e.
 
     All additional arguments must be numeric: they are passed through ``np.asarray`` upstream,
     so a single string entry would promote the whole array to a string dtype.
@@ -716,12 +719,12 @@ class SuperKludgeFlux(KerrEccEqFlux):
         #deviation coefficients. Each family lives in its own slots, so they can be used
         #together or separately. Anything not supplied stays at zero, i.e. GR.
         deviation_slots = {
-            "C_p": 5,        #0PN-1PN-type additive pdot deviation
-            "C_e": 6,        #0PN-1PN-type additive edot deviation
-            "A_p": 7,        #0PN-1PN-type additive edot deviation
-            "A_e": 8,        #0PN-1PN-type additive edot deviation
-            "n_p": 9,        #power of (p / 10) in the pdot deviation
-            "n_e": 10,        #power of (p / 10) in the edot deviation
+            "C_p": 5,        #2.5PN-type additive pdot deviation
+            "C_e": 6,        #2.5PN-type additive edot deviation
+            "A_p": 7,        #environmental pdot amplitude, relative to the vacuum pdot at p = 10
+            "A_e": 8,        #environmental edot amplitude, relative to the vacuum edot at p = 10
+            "n_p": 9,        #power of (p / 10) in the pdot environmental term
+            "n_e": 10,       #power of (p / 10) in the edot environmental term
         }
 
         for name, index in deviation_slots.items():
@@ -819,10 +822,13 @@ class SuperKludgeFlux(KerrEccEqFlux):
             
         if self.deviation_included:
 
-            #0PN-1PN-type additive corrections. Zero coefficients recover GR.
-            #print("Adding deviation with C_p: ", self.C_p, "C_e: ", self.C_e)
-            pdot +=(self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5)) + self.A_p*((p/10)**(self.n_p)) #added deviation
-            edot +=(self.massratio * e * self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5))+ self.A_e*((p/10)**(self.n_e)) #added deviation
+            #environmental power law, relative to the vacuum rates; A = 0 recovers GR.
+            pdot *= 1.0 + self.A_p * (p / 10) ** self.n_p
+            edot *= 1.0 + self.A_e * (p / 10) ** self.n_e
+
+            #2.5PN-type additive corrections, outside the environmental factor. C = 0 recovers GR.
+            pdot += self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5)
+            edot += self.massratio * e * self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5)
 
         if self.evolve_1PA:
 

@@ -721,10 +721,7 @@ class SuperKludgeFlux(KerrEccEqFlux):
         deviation_slots = {
             "C_p": 5,        #2.5PN-type additive pdot deviation
             "C_e": 6,        #2.5PN-type additive edot deviation
-            "A_p": 7,        #environmental pdot amplitude, relative to the vacuum pdot at p = 10
-            "A_e": 8,        #environmental edot amplitude, relative to the vacuum edot at p = 10
-            "n_p": 9,        #power of (p / 10) in the pdot environmental term
-            "n_e": 10,       #power of (p / 10) in the edot environmental term
+
         }
 
         for name, index in deviation_slots.items():
@@ -822,13 +819,15 @@ class SuperKludgeFlux(KerrEccEqFlux):
             
         if self.deviation_included:
 
-            #environmental power law, relative to the vacuum rates; A = 0 recovers GR.
-            pdot *= 1.0 + self.A_p * (p / 10) ** self.n_p
-            edot *= 1.0 + self.A_e * (p / 10) ** self.n_e
-
             #2.5PN-type additive corrections, outside the environmental factor. C = 0 recovers GR.
             pdot += self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5)
             edot += self.massratio * e * self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5)
+          #  Omega_phi += self.massratio * (-(15/112)*self.C_p - 45*self.C_e/16)*(1 - e**2)**(3/2)/(p**2) averaging one
+            Omega_phi += self.massratio * (-(15/56)*self.C_p)*(1 - e**2)**(3/2)/(p**2)
+         #   Omega_r+= self.massratio * (-(15/112)*self.C_p - 45*self.C_e/16)*(1 - e**2)**(3/2)/(p**2)  averagiong one
+            Omega_r+= self.massratio * (-(15/56)*self.C_p)*(1 - e**2)**(3/2)/(p**2)
+
+
 
         if self.evolve_1PA:
 

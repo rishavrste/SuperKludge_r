@@ -640,29 +640,55 @@ class SuperKludgeFlux(KerrEccEqFlux):
         deviation_included (bool) : master switch for all deviation parameters below.
                                     If False, every deviation coefficient is set to zero.
 
-    Deviation parameters (all optional, all default to 0.0, i.e. GR):
+    Deviation parameters (all optional, all default to 0.0, i.e. GR), branch PN_freq_evol:
 
-        PN deviation plus a power-law environmental term, with pdot_GR, edot_GR the vacuum rates:
+        SVD deviation: C_1 (index 5), C_2 (index 6), C_3 (index 7), C_4 (index 8). For each rate X in
+        (pdot, edot, Omega_phi, Omega_r), with v = p^-1/2 and eta the symmetric mass ratio,
 
-            pdot = pdot_GR * (1 + A_p * (p / 10)^n_p) + eta * C_p * (1 - e^2)^1.5 * (8 + 7 e^2) / p^3.5
-            edot = edot_GR * (1 + A_e * (p / 10)^n_e) + eta * e * C_e * (1 - e^2)^1.5 * (304 + 121 e^2) / p^4.5
+            X += eta * shape_X(p, e) * sum_j C_j b_jX(v),    b_jX(v) = sum_m SVD_BASIS[j][X][m] v^m  (cubics)
 
-            C_p (float) : index 5. Coefficient of the 2.5PN-type pdot term.
-            C_e (float) : index 6. Coefficient of the 2.5PN-type edot term.
-            A_p (float) : index 7. Relative environmental change of pdot at p = 10.
-            A_e (float) : index 8. Relative environmental change of edot at p = 10.
-            n_p (float) : index 9. Power of (p / 10) in the pdot environmental term.
-            n_e (float) : index 10. Power of (p / 10) in the edot environmental term.
+            shape_pdot = (1 - e^2)^1.5 (8 + 7 e^2) / p^3.5
+            shape_edot = e (1 - e^2)^1.5 (304 + 121 e^2) / p^4.5
+            shape_Om   = (1 - e^2)^1.5 / p^2            (Omega_phi and Omega_r)
 
-        A_p = A_e = 0 is the earlier C_p, C_e model, and all six at zero is GR. With A = 0 the
-        matching n has no effect, so the derivative with respect to n vanishes there. The
-        environmental term scales with the vacuum rate, so it carries eta and edot keeps its
-        factor of e.
+        Every SuperKludge 1PA rate is exactly shape_X times a cubic in v. b_j are the top four singular
+        vectors of those cubics over a in [-0.99, 0.99], chi2 in [0, 1], e in [0.05, 0.5], p in [5, 31]
+        (EMRI_CV_bias/check_models/fit_forms.py, build_basis), so one C_j moves all four rates together.
+        All C_j = 0 is GR.
 
     All additional arguments must be numeric: they are passed through ``np.asarray`` upstream,
     so a single string entry would promote the whole array to a string dtype.
     """
 
+
+    #SVD_BASIS[j][X] = cubic coefficients (v^0, v^1, v^2, v^3) of basis function j for X = pdot, edot, Omega_phi, Omega_r
+    SVD_BASIS = np.array([
+        [(0.37632294431417657, 0.08186371530706538, -2.1384786596086625, 15.566555813107684),
+         (0.01792014020543742, 0.001718010457515004, -0.11166389077259369, 1.0619052116816896),
+         (-0.1008007886555855, -0.12128626249645796, 0.07916594767215854, -1.822376201953093),
+         (-0.1008007886555859, -0.12128626249645422, 0.3815683136388984, -1.200343576482611)],
+        [(1.0068255272167919, -1.3031911948656911, -3.8858803342415227, 14.715730252332193),
+         (0.04794407272460734, -0.0626271671223376, -0.17512763720901076, 0.7094787195716344),
+         (-0.2696854090759207, 0.7320489115295432, -0.546903550040078, 5.438600762812587),
+         (-0.26968540907591476, 0.7320489115294788, 0.2621526771878987, 3.4601160680414758)],
+        [(0.9491840830750238, 1.7030130341099767, -4.366956467620969, -33.03926302182582),
+         (0.04519924205118981, 0.10239152995378609, -0.22294833013714577, -1.613743065690907),
+         (-0.25424573653795357, -0.2430061697606717, -0.14125043494900927, 5.952500307531931),
+         (-0.25424573653794524, -0.24300616976076433, 0.621486774665155, 4.3437816841727)],
+        [(-1.2064844168121964, 1.7298278302375225, 12.22088488435494, 0.23448040045258037),
+         (-0.05745163889581764, 0.1236811219331583, 1.0052449592898571, -3.742781822364084),
+         (0.3231654687889629, -1.1662068448112204, -5.115615273616784, 17.942201132473734),
+         (0.32316546878896596, -1.1662068448112344, -6.085111679983684, 15.802906720106574)],
+    ])
+    N_SVD = 4
+
+    def deviation_terms(self, p, e):
+        """Additive SVD deviation (pdot, edot, Omega_phi, Omega_r) in the units of modify_rhs (see class docstring)."""
+        f = (1 - e**2) ** 1.5
+        shape = np.array([f * (8 + 7 * e**2) / p**3.5, e * f * (304 + 121 * e**2) / p**4.5, f / p**2, f / p**2])
+        v = p ** -0.5
+        cubic = self.SVD_BASIS @ np.array([1.0, v, v**2, v**3])          #(j, X) = b_jX(v)
+        return self.massratio * shape * (self.dev_c @ cubic)
 
     def _get_deviation(self, additional_args, index: int, name: str) -> float:
         """
@@ -716,21 +742,11 @@ class SuperKludgeFlux(KerrEccEqFlux):
         except IndexError:
             self.deviation_included = False #defaults to False
 
-        #deviation coefficients. Each family lives in its own slots, so they can be used
-        #together or separately. Anything not supplied stays at zero, i.e. GR.
-        deviation_slots = {
-            "C_p": 5,        #2.5PN-type additive pdot deviation
-            "C_e": 6,        #2.5PN-type additive edot deviation
+        #SVD deviation coefficients: additional_args = [chi2, evolve_1PA, evolve_primary, evolve_2PA, deviation_included,
+        #C_1, C_2, C_3, C_4]. Anything not supplied stays at zero, i.e. GR.
+        self.dev_c = np.array([self._get_deviation(additional_args, 5 + j, f"C_{j + 1}") if self.deviation_included
+                               else 0.0 for j in range(self.N_SVD)])
 
-        }
-
-        for name, index in deviation_slots.items():
-            if self.deviation_included:
-                setattr(self, name, self._get_deviation(additional_args, index, name))
-            else:
-                setattr(self, name, 0.0)
-
-        #print("evolve_1PA: ", self.evolve_1PA, "evolve_primary: ", self.evolve_primary, "evolve_2PA: ", self.evolve_2PA,"Deviation_Include",self.deviation_included,self.C_p,self.chi2)
         
         if additional_args is None:
             self.num_add_args = 0
@@ -818,16 +834,11 @@ class SuperKludgeFlux(KerrEccEqFlux):
             """
             
         if self.deviation_included:
-
-            #2.5PN-type additive corrections, outside the environmental factor. C = 0 recovers GR.
-            pdot += self.massratio * self.C_p * ((1-e**2)**1.5) * ((8 + 7 * e **2 )/p ** 3.5)
-            edot += self.massratio * e * self.C_e * ((1-e**2)**1.5) * ((304 + 121 * e **2 )/p ** 4.5)
-          #  Omega_phi += self.massratio * (-(15/112)*self.C_p - 45*self.C_e/16)*(1 - e**2)**(3/2)/(p**2) averaging one
-            Omega_phi += self.massratio * (-(15/56)*self.C_p)*(1 - e**2)**(3/2)/(p**2)
-         #   Omega_r+= self.massratio * (-(15/112)*self.C_p - 45*self.C_e/16)*(1 - e**2)**(3/2)/(p**2)  averagiong one
-            Omega_r+= self.massratio * (-(15/56)*self.C_p)*(1 - e**2)**(3/2)/(p**2)
-
-
+            dpdot, dedot, dOmphi, dOmr = self.deviation_terms(p, e)
+            pdot += dpdot
+            edot += dedot
+            Omega_phi += dOmphi
+            Omega_r += dOmr
 
         if self.evolve_1PA:
 

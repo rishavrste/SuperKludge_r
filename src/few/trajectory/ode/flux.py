@@ -640,45 +640,33 @@ class SuperKludgeFlux(KerrEccEqFlux):
         deviation_included (bool) : master switch for all deviation parameters below.
                                     If False, every deviation coefficient is set to zero.
 
-    Deviation parameters (all optional, all default to 0.0, i.e. GR), branch LEAD7_CO:
+    Deviation parameters (all optional, all default to 0.0, i.e. GR), branch rel_4:
 
-        Leading-shape PN deviation (LEAD7_CO). For X in (pdot, edot, Omega_phi, Omega_r), with v = p^-1/2 and eta
-        the symmetric mass ratio,
+        0PA-relative PN deviation (REL4_1: REL5_1 without K). For X in (pdot, edot, Omega_phi, Omega_r), with v = p^-1/2, eta the
+        symmetric mass ratio and X_0PA the template's own 0PA rate at the same (p, e),
 
-            X += eta * L_X(p, e) * (C_X + D_X * v^3)
+            X += eta * X_0PA(p, e) * c_X * v
 
-            L_pdot  = (1 - e^2)^1.5 (8 + 7 e^2) / p^3.5
-            L_edot  = e (1 - e^2)^1.5 (304 + 121 e^2) / p^4.5
-            L_Omphi = L_Omr = (1 - e^2)^1.5 / p^2
+            c_p     (float) : index 5. pdot coefficient.
+            c_e     (float) : index 6. edot coefficient.
+            c_Omphi (float) : index 7. Omega_phi coefficient.
+            c_Omr   (float) : index 8. Omega_r coefficient.
 
-            C_p     (float) : index 5.  pdot amplitude.
-            C_e     (float) : index 6.  edot amplitude.
-            C_Om    (float) : index 7.  amplitude of Omega_phi and Omega_r (one coefficient for both).
-            D_p     (float) : index 8.  pdot relative-v^3 coefficient.
-            D_e     (float) : index 9.  edot relative-v^3 coefficient.
-            D_Omphi (float) : index 10. Omega_phi relative-v^3 coefficient.
-            D_Omr   (float) : index 11. Omega_r relative-v^3 coefficient.
-
-        Only the PN structure is assumed: the leading PN shape of each rate and one coefficient per rate at
-        relative order v^3 (1.5PN); no 1PA coefficient values enter. All seven at zero is GR.
+        Only the PN structure is assumed: the correction is eta-suppressed and starts at relative order v (as the
+        SuperKludge 1PA does relative to 0PA); no 1PA coefficient values enter. All four at zero is GR.
 
     All additional arguments must be numeric: they are passed through ``np.asarray`` upstream,
     so a single string entry would promote the whole array to a string dtype.
     """
 
 
-    DEVIATION_NAMES = ("C_p", "C_e", "C_Om", "D_p", "D_e", "D_Omphi", "D_Omr")     #additional_args[5:12]
+    DEVIATION_NAMES = ("c_p", "c_e", "c_Omphi", "c_Omr")     #additional_args[5:9]
 
-    def deviation_terms(self, p, e):
-        """Additive deviation (pdot, edot, Omega_phi, Omega_r) in the units of modify_rhs (see class docstring):
-        eta * L_X(p, e) * (C_X + D_X v^3), with C_Om the amplitude of both frequencies."""
+    def deviation_terms(self, p, rates_0pa):
+        """Additive deviation (pdot, edot, Omega_phi, Omega_r) in the units of modify_rhs (see class docstring).
+        rates_0pa: the 0PA (pdot, edot, Omega_phi, Omega_r) at this (p, e)."""
         v = p ** -0.5
-        f = (1 - e * e) ** 1.5
-        lead = np.array([f * (8 + 7 * e * e) / p ** 3.5, e * f * (304 + 121 * e * e) / p ** 4.5, f / p ** 2, f / p ** 2])
-        C_p, C_e, C_Om, D_p, D_e, D_Omphi, D_Omr = self.dev_c
-        amp = np.array([C_p, C_e, C_Om, C_Om])
-        slope = np.array([D_p, D_e, D_Omphi, D_Omr])
-        return self.massratio * lead * (amp + slope * v**3)
+        return self.massratio * np.asarray(rates_0pa) * self.dev_c * v
 
     def _get_deviation(self, additional_args, index: int, name: str) -> float:
         """
@@ -733,7 +721,7 @@ class SuperKludgeFlux(KerrEccEqFlux):
             self.deviation_included = False #defaults to False
 
         #deviation coefficients: additional_args = [chi2, evolve_1PA, evolve_primary, evolve_2PA, deviation_included,
-        #C_p, C_e, C_Om, D_p, D_e, D_Omphi, D_Omr]. Anything not supplied stays at zero, i.e. GR.
+        #c_p, c_e, c_Omphi, c_Omr]. Anything not supplied stays at zero, i.e. GR.
         self.dev_c = np.array([self._get_deviation(additional_args, 5 + j, name) if self.deviation_included
                                else 0.0 for j, name in enumerate(self.DEVIATION_NAMES)])
 
@@ -823,7 +811,7 @@ class SuperKludgeFlux(KerrEccEqFlux):
             """
             
         if self.deviation_included:
-            dpdot, dedot, dOmphi, dOmr = self.deviation_terms(p, e)
+            dpdot, dedot, dOmphi, dOmr = self.deviation_terms(p, (pdot, edot, Omega_phi, Omega_r))   #still 0PA here
             pdot += dpdot
             edot += dedot
             Omega_phi += dOmphi
